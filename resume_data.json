@@ -1,0 +1,139 @@
+{
+  "profile": {
+    "first_name": "Khalfan",
+    "last_name": "Athman",
+    "username": "khalfan",
+    "email": "khalfan@khalfanathman.dev",
+    "phone": "+254719401851",
+    "title": "Software Engineer (Backend Specialization) & Network Engineer",
+    "bio": "A highly skilled Software Engineer (Backend Specialization) and Network Engineer with 4+ years of experience in IT infrastructure and full-stack development. Certified in Oracle Cloud (OCI), AWS Cloud Practitioner and pursuing AWS Solutions Architect and Data Science, with expertise in Python, C and Linux systems. Passionate about building scalable solutions, optimizing systems, and contributing to open-source projects.",
+    "location": "Nairobi, Kenya",
+    "linkedin": "https://www.linkedin.com/in/khalfaniathman",
+    "github": "https://github.com/AbuArwa001",
+    "website": "https://khalfanathman.dev"
+  },
+  "skill_categories": [
+    {
+      "name": "Programming Languages",
+      "skills": [
+        {"name": "Python", "level": 90},
+        {"name": "C", "level": 85},
+        {"name": "Bash", "level": 80},
+        {"name": "Java", "level": 60}
+      ]
+    },
+    {
+      "name": "Operating Systems",
+      "skills": [
+        {"name": "Linux (Ubuntu, Debian)", "level": 95},
+        {"name": "Windows", "level": 85}
+      ]
+    },
+    {
+      "name": "Networking",
+      "skills": [
+         {"name": "TCP/IP & Routing Protocols", "level": 90},
+         {"name": "Network Security & Firewalls", "level": 85},
+         {"name": "Cisco Routers & Switches", "level": 80},
+         {"name": "Wireshark", "level": 85}
+      ]
+    },
+    {
+      "name": "DevOps & Tools",
+      "skills": [
+        {"name": "Git & GitHub", "level": 90},
+        {"name": "Jenkins / CI/CD", "level": 75},
+        {"name": "Network Automation (Python/Bash)", "level": 80}
+      ]
+    },
+    {
+      "name": "Cloud",
+      "skills": [
+        {"name": "Oracle Cloud (OCI)", "level": 80},
+        {"name": "AWS", "level": 75}
+      ]
+    }
+  ],
+  "certifications": [
+    {
+      "title": "Certificate in Software Engineering",
+      "issuer": "ALX AFRICA",
+      "date": "2024-10-01",
+      "type": "alx",
+      "in_progress": false
+    },
+    {
+      "title": "Oracle Cloud Infrastructure (OCI) Associate",
+      "issuer": "Oracle",
+      "date": "2022-01-01",
+      "type": "other",
+      "in_progress": false
+    },
+    {
+      "title": "AWS Cloud Practitioner",
+      "issuer": "AWS",
+      "date": "2023-01-01",
+      "type": "aws",
+      "in_progress": false
+    },
+    {
+      "title": "AWS Solutions Architect",
+      "issuer": "AWS",
+      "date": "",
+      "type": "aws",
+      "in_progress": true
+    },
+    {
+      "title": "ProDev (Backend Engineer)",
+      "issuer": "ALX",
+      "date": "2024-01-01",
+      "type": "alx",
+      "in_progress": false
+    },
+    {
+      "title": "Data Science",
+      "issuer": "N/A",
+      "date": "",
+      "type": "other",
+      "in_progress": true
+    }
+  ],
+  "projects": [
+    {
+      "name": "Simple Linux Shell",
+      "description": "Developed a basic Linux shell in C that supports command execution, input/output redirection, and background processes. Implemented system calls and process management.",
+      "technologies": "C, Linux API, System Calls",
+      "status": "completed",
+      "completion": "100%",
+      "type": "system",
+      "link": "https://github.com/AbuArwa001/simple_shell"
+    },
+    {
+      "name": "Funding Manager System for Groups",
+      "description": "Building a system to help groups manage contributions, loans, and fund allocations efficiently. Implemented user authentication and transaction tracking.",
+      "technologies": "Python, Flask, MySQL",
+      "status": "in_progress",
+      "completion": "70%",
+      "type": "web",
+      "link": "https://github.com/AbuArwa001"
+    },
+    {
+      "name": "I'tikaf Registration System",
+      "description": "Designing and developing an online platform for I'tikaf registration, enabling event management and user registration with role-based access control.",
+      "technologies": "React, Next.js, MySQL",
+      "status": "in_progress",
+      "completion": "60%",
+      "type": "web",
+      "link": "https://github.com/AbuArwa001"
+    },
+    {
+      "name": "Voting System API",
+      "description": "Backend for a poll system. Built APIs for creating polls, voting, and fetching results. Designed schemas optimized for real-time computation and provided Swagger documentation.",
+      "technologies": "Django, PostgreSQL, Swagger",
+      "status": "completed",
+      "completion": "100%",
+      "type": "backend",
+      "link": "https://github.com/AbuArwa001"
+    }
+  ]
+}
