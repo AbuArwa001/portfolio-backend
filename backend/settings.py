@@ -175,12 +175,8 @@ REST_FRAMEWORK = {
 
 # Auth user model
 AUTH_USER_MODEL = 'users.User'
-# CORS Settings (for frontend communication)
-CORS_ALLOWED_ORIGINS = [
-    "http://khalfanathman.site",
-    "https://khalfanathman.site",
-    "http://khalfanathman.dev",
-    "https://khalfanathman.dev",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+# Get the string from .env, default to empty string if not found
+cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
+
+# Convert the string into a list, removing extra whitespace if any
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(",") if origin]
