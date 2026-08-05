@@ -51,7 +51,8 @@ INSTALLED_APPS = [
     "contact",
     "corsheaders",
     "users",
-    "certifications"
+    "certifications",
+    "references",
 ]
 
 MIDDLEWARE = [
