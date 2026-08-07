@@ -61,3 +61,5 @@ urllib3==2.5.0
 whitenoise==6.9.0
 wrapt==1.17.3
 yarl==1.20.1
+boto3==1.43.66
+django-storages==1.14.6
