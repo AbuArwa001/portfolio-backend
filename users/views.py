@@ -30,8 +30,11 @@ class BaseProfileViewSet(viewsets.ModelViewSet):
         if self.request.user.is_authenticated:
             return self.request.user
         try:
-            return User.objects.get(username="AbuArwa001")
-        except User.DoesNotExist:
+            return User.objects.filter(username__in=["AbuArwa001", "khalfan", "admin"]).first() or \
+                   User.objects.filter(email="khalfan@khalfanathman.dev").first() or \
+                   User.objects.filter(is_superuser=True).first() or \
+                   User.objects.first()
+        except Exception:
             return None
 
     def get_profile(self):
@@ -196,17 +199,19 @@ class UserProfileViewSet(viewsets.ViewSet):
         user = request.user if request.user.is_authenticated else None
         if not user:
             try:
-                user = User.objects.get(username="AbuArwa001")
-            except User.DoesNotExist:
-                return Response({'error': 'User not found'}, status=404)
+                user = User.objects.filter(username__in=["AbuArwa001", "khalfan", "admin"]).first() or \
+                       User.objects.filter(email="khalfan@khalfanathman.dev").first() or \
+                       User.objects.filter(is_superuser=True).first() or \
+                       User.objects.first()
+            except Exception:
+                user = None
+        if not user:
+            return Response({'error': 'User not found'}, status=404)
         
         try:
             profile = user.profile
         except UserProfile.DoesNotExist:
-            if request.user.is_authenticated and user == request.user:
-                profile = UserProfile.objects.create(user=user)
-            else:
-                return Response({'error': 'Profile not found'}, status=404)
+            profile = UserProfile.objects.create(user=user)
         
         return Response(UserProfileSerializer(profile).data)
 

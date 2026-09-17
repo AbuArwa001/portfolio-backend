@@ -32,7 +32,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', "django-insecure-rq_)-=g_%8s18br-@h%koxc^dr
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 CORS_ALLOW_ALL_ORIGINS = True
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost 127.0.0.1").split(" ")
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost 127.0.0.1 0.0.0.0 testserver").split(" ")
 
 
 # Application definition
@@ -94,11 +94,12 @@ WSGI_APPLICATION = "backend.wsgi.application"
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
 if DATABASE_URL:
-    # For production (PostgreSQL on Render)
+    # For production / Neon PostgreSQL
     db_config = dj_database_url.parse(DATABASE_URL)
-    db_config['OPTIONS'] = {
-        'sslmode': 'require',
-    }
+    if 'OPTIONS' not in db_config:
+        db_config['OPTIONS'] = {}
+    db_config['OPTIONS']['sslmode'] = 'require'
+    db_config['CONN_MAX_AGE'] = int(os.getenv('DB_CONN_MAX_AGE', '0'))
     DATABASES = {
         'default': db_config
     }
@@ -110,6 +111,11 @@ else:
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
+
+AUTHENTICATION_BACKENDS = [
+    'users.backends.EmailOrUsernameModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
