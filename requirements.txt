@@ -63,3 +63,5 @@ wrapt==1.17.3
 yarl==1.20.1
 boto3==1.43.66
 django-storages==1.14.6
+openpyxl==3.1.5
+et_xmlfile==2.0.0

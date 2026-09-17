@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "certifications",
     "references",
     "storages",
+    "applications",
 ]
 
 MIDDLEWARE = [
