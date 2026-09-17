@@ -249,13 +249,15 @@ def seed_certifications(user):
     print("Seeding Certifications...")
 
     certs_data = [
+        # --- Professional Certifications ---
         {
             "name": "AWS Certified Cloud Practitioner",
             "issuer": "Amazon Web Services",
             "date": "2023-08-15",
             "in_progress": False,
             "type": "aws",
-            "credential_url": "https://www.credly.com/",
+            "badge": "/badges/aws-cloud-practitioner.png",
+            "credential_url": "https://www.credly.com/org/amazon-web-services/badge/aws-certified-cloud-practitioner",
         },
         {
             "name": "Oracle Cloud Infrastructure (OCI) Associate",
@@ -263,14 +265,16 @@ def seed_certifications(user):
             "date": "2023-01-20",
             "in_progress": False,
             "type": "oracle",
+            "badge": "/badges/oracle-oci.png",
             "credential_url": "https://catalog-education.oracle.com/",
         },
         {
-            "name": "Certificate in Software Engineering (ALX)",
+            "name": "Certificate in Software Engineering",
             "issuer": "ALX Africa",
             "date": "2024-10-01",
             "in_progress": False,
             "type": "alx",
+            "badge": "/badges/alx-software-engineering.svg",
             "credential_url": "https://alxafrica.com",
         },
         {
@@ -279,15 +283,63 @@ def seed_certifications(user):
             "date": "2025-01-01",
             "in_progress": True,
             "type": "aws",
-            "credential_url": "",
+            "badge": "/badges/aws-solutions-architect.png",
+            "credential_url": "https://www.credly.com/",
         },
         {
-            "name": "Cisco Certified Network Associate (CCNA Routing & Switching)",
+            "name": "Cisco Certified Network Associate (CCNA 200-301)",
             "issuer": "Cisco",
             "date": "2024-06-10",
             "in_progress": False,
-            "type": "badge",
+            "type": "other",
+            "badge": "/badges/cisco-ccna.png",
             "credential_url": "https://www.cisco.com/",
+        },
+        # --- Verified Digital Badges ---
+        {
+            "name": "CCNA: Enterprise Networking, Security, and Automation",
+            "issuer": "Cisco Networking Academy",
+            "date": "2024-05-15",
+            "in_progress": False,
+            "type": "badge",
+            "badge": "/badges/cisco-ccna.png",
+            "credential_url": "https://www.credly.com/org/cisco/badge/ccna-enterprise-networking-security-and-automation",
+        },
+        {
+            "name": "AWS Cloud Practitioner Digital Badge",
+            "issuer": "Credly / Amazon Web Services",
+            "date": "2023-08-15",
+            "in_progress": False,
+            "type": "badge",
+            "badge": "/badges/aws-cloud-practitioner.png",
+            "credential_url": "https://www.credly.com/org/amazon-web-services/badge/aws-certified-cloud-practitioner",
+        },
+        {
+            "name": "Oracle Cloud Infrastructure Certified Foundations Associate",
+            "issuer": "Oracle University",
+            "date": "2023-01-20",
+            "in_progress": False,
+            "type": "badge",
+            "badge": "/badges/oracle-oci.png",
+            "credential_url": "https://catalog-education.oracle.com/",
+        },
+        {
+            "name": "ALX Software Engineering Honours Badge",
+            "issuer": "ALX Africa",
+            "date": "2024-10-01",
+            "in_progress": False,
+            "type": "badge",
+            "badge": "/badges/alx-software-engineering.svg",
+            "credential_url": "https://alxafrica.com",
+        },
+        {
+            "name": "Network Security & Packet Inspection Specialist",
+            "issuer": "Network Academy / Wireshark",
+            "date": "2024-04-10",
+            "in_progress": False,
+            "type": "badge",
+            "badge": "/badges/network-security.svg",
+            "credential_url": "https://www.credly.com/",
         },
     ]
 
