@@ -32,7 +32,13 @@ SECRET_KEY = os.getenv('SECRET_KEY', "django-insecure-rq_)-=g_%8s18br-@h%koxc^dr
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 CORS_ALLOW_ALL_ORIGINS = True
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost 127.0.0.1 0.0.0.0 testserver").split(" ")
+
+import re
+raw_allowed_hosts = os.getenv("ALLOWED_HOSTS", "localhost 127.0.0.1 0.0.0.0 testserver api.khalfanathman.dev")
+ALLOWED_HOSTS = [h.strip() for h in re.split(r'[\s,]+', raw_allowed_hosts) if h.strip()]
+
+# Inform Django to trust the X-Forwarded-Proto header from Nginx for HTTPS detection
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
@@ -216,3 +222,7 @@ cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
 
 # Convert the string into a list, removing extra whitespace if any
 CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(",") if origin]
+
+# CSRF Trusted Origins for Django 4.0+
+csrf_origins = os.getenv("CSRF_TRUSTED_ORIGINS", "https://api.khalfanathman.dev,http://localhost:3000,http://127.0.0.1:3000")
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins.split(",") if origin.strip()]
