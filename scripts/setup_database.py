@@ -118,14 +118,14 @@ def seed_projects(user):
         {
             "name": "jamiaGive Admin Dashboard",
             "description": (
-                "Enterprise administrative dashboard for Jamia Mosque Nairobi's charitable operations. "
-                "Includes real-time fund tracking, structured appeal categories, scheduled drives, "
-                "secure inter-account transfers, and financial audit logs powered by a decoupled DRF API."
+                "Enterprise charity operations and donation management platform independently architected on own accord "
+                "for Jamia Mosque Committee. Delivers real-time donor auditing, multi-category fund allocation, scheduled appeal drives, "
+                "inter-account transfers, and financial audit logs powered by a decoupled DRF API. 100% complete and launch-ready."
             ),
             "link": "https://jmc-admin-dashboard.vercel.app/",
-            "status": "In Progress",
-            "completion": "85%",
-            "technologies": "Next.js, TypeScript, Django REST Framework, PostgreSQL, Radix UI, Tailwind CSS",
+            "status": "Completed (Launch Ready)",
+            "completion": "100%",
+            "technologies": "Next.js, TypeScript, Django REST Framework, PostgreSQL, Radix UI, Recharts, Tailwind CSS",
             "type": "Web App",
         },
         {
@@ -206,9 +206,21 @@ def seed_skills(user):
             "name": "Networking & Infrastructure",
             "skills": [
                 ("TCP/IP & Routing Protocols", 94),
+                ("TP-Link Managed Switches & 802.1Q VLANs", 92),
+                ("Ubiquiti UniFi Wireless APs", 90),
+                ("Cisco Routers & Switches", 88),
                 ("Network Security & Firewalls", 88),
-                ("Cisco Routers & Switches", 85),
                 ("Wireshark & Packet Analysis", 86),
+            ],
+        },
+        {
+            "name": "Telephony, Security & Enterprise",
+            "skills": [
+                ("Panasonic KX-NS500 IP-PBX & VoIP", 90),
+                ("Hikvision Biometrics & Access Control", 88),
+                ("Time & Attendance Systems", 86),
+                ("Tally ERP Vendor Technical Liaison", 85),
+                ("Mosque PA & Sound System Engineering", 88),
             ],
         },
         {
