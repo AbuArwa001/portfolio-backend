@@ -1,0 +1,705 @@
+[
+{
+  "model": "users.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$1ardS4c89L56wIK3pbjXfF$d1O/Zel25ajH8sePdp0KnMyoG+FVO+5UdDAzPn79Ffc=",
+    "last_login": null,
+    "is_superuser": true,
+    "first_name": "Khalfan",
+    "last_name": "Athman",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2026-09-17T12:44:16.480Z",
+    "username": "admin",
+    "email": "khalfan@khalfanathman.dev",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "users.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$xE2haGoZPgMf817iS0yivS$rJTdui9CqiEmBkdmj3+kKXM4E6a+ubVJnFp45AVCdIg=",
+    "last_login": null,
+    "is_superuser": true,
+    "first_name": "Khalfan",
+    "last_name": "Athman",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2026-09-17T12:44:17.105Z",
+    "username": "khalfan",
+    "email": "khalfan.alt@khalfanathman.dev",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "users.skillcategory",
+  "pk": 1,
+  "fields": {
+    "name": "Backend & APIs"
+  }
+},
+{
+  "model": "users.skillcategory",
+  "pk": 2,
+  "fields": {
+    "name": "Frontend & Web"
+  }
+},
+{
+  "model": "users.skillcategory",
+  "pk": 3,
+  "fields": {
+    "name": "Networking & Infrastructure"
+  }
+},
+{
+  "model": "users.skillcategory",
+  "pk": 4,
+  "fields": {
+    "name": "Cloud & DevOps"
+  }
+},
+{
+  "model": "users.skillcategory",
+  "pk": 5,
+  "fields": {
+    "name": "Systems & Core"
+  }
+},
+{
+  "model": "users.skillcategory",
+  "pk": 6,
+  "fields": {
+    "name": "Telephony, Security & Enterprise"
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 1,
+  "fields": {
+    "name": "Python / Django & DRF",
+    "level": 95,
+    "category": 1
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 2,
+  "fields": {
+    "name": "REST API Design & Swagger",
+    "level": 92,
+    "category": 1
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 3,
+  "fields": {
+    "name": "PostgreSQL & Database Design",
+    "level": 88,
+    "category": 1
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 4,
+  "fields": {
+    "name": "Flask & Celery",
+    "level": 82,
+    "category": 1
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 5,
+  "fields": {
+    "name": "Next.js 15 & React 19",
+    "level": 90,
+    "category": 2
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 6,
+  "fields": {
+    "name": "TypeScript & Modern JS",
+    "level": 88,
+    "category": 2
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 7,
+  "fields": {
+    "name": "Tailwind CSS & Shadcn/UI",
+    "level": 94,
+    "category": 2
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 8,
+  "fields": {
+    "name": "Framer Motion & Animations",
+    "level": 85,
+    "category": 2
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 9,
+  "fields": {
+    "name": "TCP/IP & Routing Protocols",
+    "level": 94,
+    "category": 3
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 10,
+  "fields": {
+    "name": "Network Security & Firewalls",
+    "level": 88,
+    "category": 3
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 11,
+  "fields": {
+    "name": "Cisco Routers & Switches",
+    "level": 88,
+    "category": 3
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 12,
+  "fields": {
+    "name": "Wireshark & Packet Analysis",
+    "level": 86,
+    "category": 3
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 13,
+  "fields": {
+    "name": "Linux System Administration",
+    "level": 92,
+    "category": 4
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 14,
+  "fields": {
+    "name": "Docker & Containerization",
+    "level": 85,
+    "category": 4
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 15,
+  "fields": {
+    "name": "AWS Cloud (EC2, S3, RDS)",
+    "level": 82,
+    "category": 4
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 16,
+  "fields": {
+    "name": "Nginx, Gunicorn & CI/CD",
+    "level": 86,
+    "category": 4
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 17,
+  "fields": {
+    "name": "C Programming & POSIX",
+    "level": 84,
+    "category": 5
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 18,
+  "fields": {
+    "name": "Bash & Shell Scripting",
+    "level": 88,
+    "category": 5
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 19,
+  "fields": {
+    "name": "Git & Collaborative Workflows",
+    "level": 92,
+    "category": 5
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 20,
+  "fields": {
+    "name": "TP-Link Managed Switches & 802.1Q VLANs",
+    "level": 92,
+    "category": 3
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 21,
+  "fields": {
+    "name": "Ubiquiti UniFi Wireless APs",
+    "level": 90,
+    "category": 3
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 22,
+  "fields": {
+    "name": "Panasonic KX-NS500 IP-PBX & VoIP",
+    "level": 90,
+    "category": 6
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 23,
+  "fields": {
+    "name": "Hikvision Biometrics & Access Control",
+    "level": 88,
+    "category": 6
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 24,
+  "fields": {
+    "name": "Time & Attendance Systems",
+    "level": 86,
+    "category": 6
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 25,
+  "fields": {
+    "name": "Tally ERP Vendor Technical Liaison",
+    "level": 85,
+    "category": 6
+  }
+},
+{
+  "model": "users.skill",
+  "pk": 26,
+  "fields": {
+    "name": "Mosque PA & Sound System Engineering",
+    "level": 88,
+    "category": 6
+  }
+},
+{
+  "model": "users.userprofile",
+  "pk": 1,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "bio": "Software Engineer with backend specialization in Django REST Framework and high-performance Next.js frontends, backed by 6+ years of network engineering discipline. Certified in AWS, Oracle Cloud (OCI), and experienced in designing scalable systems.",
+    "title": "Network Engineer & Full-Stack Developer",
+    "location": "Nairobi, Kenya",
+    "phone": "+254719401851",
+    "website": "https://khalfanathman.dev",
+    "github": "https://github.com/AbuArwa001",
+    "linkedin": "https://www.linkedin.com/in/khalfaniathman",
+    "twitter": "",
+    "profile_image": "",
+    "skill_categories": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "certifications": [],
+    "languages": []
+  }
+},
+{
+  "model": "projects.project",
+  "pk": 1,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "Langata Islamic Center",
+    "description": "End-to-end web platform and digital hub for the Langata Islamic Center & Mosque. Includes real-time donation drives, community announcements, prayer schedules, event management, and programme listings with a decoupled Next.js frontend and DRF API.",
+    "link": "https://www.langataislamiccenter.org/",
+    "status": "Live",
+    "completion": "100%",
+    "technologies": "Next.js 15, TypeScript, Django REST Framework, PostgreSQL, Tailwind CSS",
+    "type": "Web App",
+    "image": "",
+    "created_at": "2026-09-17T12:44:17.724Z"
+  }
+},
+{
+  "model": "projects.project",
+  "pk": 2,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "SUPKEM Digital Portal",
+    "description": "National digital presence for the Supreme Council of Kenya Muslims. Features a bi-lingual (EN/AR) news publishing engine, executive leadership showcase, secure admin portal with Excel export, and a national Quran Competition registration portal.",
+    "link": "https://www.supkem.org/",
+    "status": "Live",
+    "completion": "100%",
+    "technologies": "Next.js 15, Django REST Framework, PostgreSQL, next-intl, Tailwind CSS, JWT",
+    "type": "Web App",
+    "image": "",
+    "created_at": "2026-09-17T12:44:17.732Z"
+  }
+},
+{
+  "model": "projects.project",
+  "pk": 3,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "jamiaGive Admin Dashboard",
+    "description": "Enterprise charity operations and donation management platform independently architected on own accord for Jamia Mosque Committee. Delivers real-time donor auditing, multi-category fund allocation, scheduled appeal drives, inter-account transfers, and financial audit logs powered by a decoupled DRF API. 100% complete and launch-ready.",
+    "link": "https://jmc-admin-dashboard.vercel.app/",
+    "status": "Completed (Launch Ready)",
+    "completion": "100%",
+    "technologies": "Next.js, TypeScript, Django REST Framework, PostgreSQL, Radix UI, Recharts, Tailwind CSS",
+    "type": "Web App",
+    "image": "",
+    "created_at": "2026-09-17T12:44:17.737Z"
+  }
+},
+{
+  "model": "projects.project",
+  "pk": 4,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "SeaFood Platform & Analytics Dashboard",
+    "description": "Full-stack seafood supply commerce platform featuring an executive analytics dashboard. Delivers inventory management, product cataloguing, order fulfilment tracking, and real-time revenue visualisations.",
+    "link": "https://seafooddashboard.vercel.app/",
+    "status": "Live",
+    "completion": "100%",
+    "technologies": "Next.js, TypeScript, Python, Django REST Framework, Recharts, PostgreSQL",
+    "type": "Web App",
+    "image": "",
+    "created_at": "2026-09-17T12:44:17.742Z"
+  }
+},
+{
+  "model": "projects.project",
+  "pk": 5,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "Religious Attaché KSA",
+    "description": "Production platform for the Kenya Religious Attaché office in Saudi Arabia. Handles diplomatic service requests, news publishing, and official community announcements.",
+    "link": "https://www.religiousattacheksa.co.ke/en",
+    "status": "Live",
+    "completion": "100%",
+    "technologies": "Next.js, Django REST Framework, PostgreSQL, Python, Nginx",
+    "type": "Web App",
+    "image": "",
+    "created_at": "2026-09-17T12:44:17.750Z"
+  }
+},
+{
+  "model": "projects.project",
+  "pk": 6,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "Kuranet — Voting System API",
+    "description": "Secure distributed voting API architecture featuring high availability behind HAProxy load balancers, JWT authentication, database replication, rate limiting, and DDoS protection.",
+    "link": "https://github.com/AbuArwa001/kuranet",
+    "status": "Completed",
+    "completion": "100%",
+    "technologies": "Python, Flask, HAProxy, MySQL, JWT, Nginx, AWS",
+    "type": "API / Backend",
+    "image": "",
+    "created_at": "2026-09-17T12:44:17.755Z"
+  }
+},
+{
+  "model": "blog.blogpost",
+  "pk": 1,
+  "fields": {
+    "title": "Architecting Decoupled Next.js 15 & Django REST APIs for Scale",
+    "slug": "architecting-decoupled-nextjs-and-django-apis",
+    "content": "Building high-performance web platforms requires a clean separation of concerns. In this article, we explore the architectural decisions behind coupling Next.js 15 App Router with a stateless Django REST Framework (DRF) backend.\n\n### Key Architectural Tenets\n1. **Stateless JWT Authentication**: Keeping session state out of the database tier enables seamless horizontal scaling across instances.\n2. **Reverse Proxying and SSL Termination**: Utilizing Nginx and Cloudflare for SSL offloading and rate limiting.\n3. **Database Connection Pooling**: Preventing connection exhaustion when connecting serverless frontends to PostgreSQL.\n\nWhen properly decoupled, each layer can be optimized, deployed, and scaled independently without bottlenecks.",
+    "created_at": "2026-09-17T12:44:18.068Z"
+  }
+},
+{
+  "model": "blog.blogpost",
+  "pk": 2,
+  "fields": {
+    "title": "Network Engineering Principles Every Backend Developer Should Know",
+    "slug": "network-engineering-principles-for-backend-devs",
+    "content": "Software performance doesn't stop at the application layer. Understanding OSI Layer 3 through Layer 7 routing, TCP window scaling, and DNS propagation changes the way you write backend code.\n\n### Core Concepts:\n- **TCP Three-Way Handshake & Keep-Alives**: How persistent HTTP/2 and connection reuse cut latency by over 60%.\n- **Subnetting & VPC Isolation**: Protecting database clusters with private subnets and security group ingress rules.\n- **Bufferbloat & MTU Sizing**: Why packet fragmentation causes subtle timeout issues in high-throughput microservices.\n\nA disciplined network perspective ensures that backend services remain resilient even under challenging network conditions.",
+    "created_at": "2026-09-17T12:44:18.073Z"
+  }
+},
+{
+  "model": "certifications.certification",
+  "pk": 1,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "AWS Certified Cloud Practitioner",
+    "issuer": "Amazon Web Services",
+    "date": "2023-08-15",
+    "badge": "/badges/aws-cloud-practitioner.png",
+    "credential_url": "https://www.credly.com/org/amazon-web-services/badge/aws-certified-cloud-practitioner",
+    "in_progress": false,
+    "type": "aws"
+  }
+},
+{
+  "model": "certifications.certification",
+  "pk": 2,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "Oracle Cloud Infrastructure (OCI) Associate",
+    "issuer": "Oracle",
+    "date": "2023-01-20",
+    "badge": "/badges/oracle-oci.png",
+    "credential_url": "https://catalog-education.oracle.com/",
+    "in_progress": false,
+    "type": "oracle"
+  }
+},
+{
+  "model": "certifications.certification",
+  "pk": 3,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "Certificate in Software Engineering (ALX)",
+    "issuer": "ALX Africa",
+    "date": "2024-10-01",
+    "badge": null,
+    "credential_url": "https://alxafrica.com",
+    "in_progress": false,
+    "type": "alx"
+  }
+},
+{
+  "model": "certifications.certification",
+  "pk": 4,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "AWS Certified Solutions Architect – Associate",
+    "issuer": "Amazon Web Services",
+    "date": "2025-01-01",
+    "badge": "/badges/aws-solutions-architect.png",
+    "credential_url": "https://www.credly.com/",
+    "in_progress": true,
+    "type": "aws"
+  }
+},
+{
+  "model": "certifications.certification",
+  "pk": 5,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "Cisco Certified Network Associate (CCNA Routing & Switching)",
+    "issuer": "Cisco",
+    "date": "2024-06-10",
+    "badge": null,
+    "credential_url": "https://www.cisco.com/",
+    "in_progress": false,
+    "type": "badge"
+  }
+},
+{
+  "model": "certifications.certification",
+  "pk": 6,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "Certificate in Software Engineering",
+    "issuer": "ALX Africa",
+    "date": "2024-10-01",
+    "badge": "/badges/alx-software-engineering.svg",
+    "credential_url": "https://alxafrica.com",
+    "in_progress": false,
+    "type": "alx"
+  }
+},
+{
+  "model": "certifications.certification",
+  "pk": 7,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "Cisco Certified Network Associate (CCNA 200-301)",
+    "issuer": "Cisco",
+    "date": "2024-06-10",
+    "badge": "/badges/cisco-ccna.png",
+    "credential_url": "https://www.cisco.com/",
+    "in_progress": false,
+    "type": "other"
+  }
+},
+{
+  "model": "certifications.certification",
+  "pk": 8,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "CCNA: Enterprise Networking, Security, and Automation",
+    "issuer": "Cisco Networking Academy",
+    "date": "2024-05-15",
+    "badge": "/badges/cisco-ccna.png",
+    "credential_url": "https://www.credly.com/org/cisco/badge/ccna-enterprise-networking-security-and-automation",
+    "in_progress": false,
+    "type": "badge"
+  }
+},
+{
+  "model": "certifications.certification",
+  "pk": 9,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "AWS Cloud Practitioner Digital Badge",
+    "issuer": "Credly / Amazon Web Services",
+    "date": "2023-08-15",
+    "badge": "/badges/aws-cloud-practitioner.png",
+    "credential_url": "https://www.credly.com/org/amazon-web-services/badge/aws-certified-cloud-practitioner",
+    "in_progress": false,
+    "type": "badge"
+  }
+},
+{
+  "model": "certifications.certification",
+  "pk": 10,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "Oracle Cloud Infrastructure Certified Foundations Associate",
+    "issuer": "Oracle University",
+    "date": "2023-01-20",
+    "badge": "/badges/oracle-oci.png",
+    "credential_url": "https://catalog-education.oracle.com/",
+    "in_progress": false,
+    "type": "badge"
+  }
+},
+{
+  "model": "certifications.certification",
+  "pk": 11,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "ALX Software Engineering Honours Badge",
+    "issuer": "ALX Africa",
+    "date": "2024-10-01",
+    "badge": "/badges/alx-software-engineering.svg",
+    "credential_url": "https://alxafrica.com",
+    "in_progress": false,
+    "type": "badge"
+  }
+},
+{
+  "model": "certifications.certification",
+  "pk": 12,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "name": "Network Security & Packet Inspection Specialist",
+    "issuer": "Network Academy / Wireshark",
+    "date": "2024-04-10",
+    "badge": "/badges/network-security.svg",
+    "credential_url": "https://www.credly.com/",
+    "in_progress": false,
+    "type": "badge"
+  }
+},
+{
+  "model": "references.reference",
+  "pk": 1,
+  "fields": {
+    "name": "Eng. Ahmed Salim",
+    "title": "Lead Infrastructure Architect",
+    "company": "SUPKEM ICT Directorate",
+    "relationship": "Project Director & Technical Overseer",
+    "quote": "Khalfan engineered our national digital portal with remarkable reliability. His mastery of both network infrastructure and decoupled web applications delivered a system that effortlessly handled hundreds of concurrent event registrations.",
+    "email": "ahmed.salim@supkem.org",
+    "phone": "+254 722 000 111",
+    "linkedin": "https://linkedin.com",
+    "created_at": "2026-09-17T12:44:18.049Z"
+  }
+},
+{
+  "model": "references.reference",
+  "pk": 2,
+  "fields": {
+    "name": "Dr. Hassan Omar",
+    "title": "Director of Operations",
+    "company": "Langata Islamic Center",
+    "relationship": "Client & Executive Supervisor",
+    "quote": "The digital portal Khalfan built for the Langata Islamic Center brought clarity, transparency, and elegance to our community programmes and real-time donations. Outstanding work ethic and technical precision.",
+    "email": "director@langataislamiccenter.org",
+    "phone": "+254 733 111 222",
+    "linkedin": "https://linkedin.com",
+    "created_at": "2026-09-17T12:44:18.055Z"
+  }
+},
+{
+  "model": "references.reference",
+  "pk": 3,
+  "fields": {
+    "name": "Zubair Mohamed",
+    "title": "Head of Charitable Funds",
+    "company": "Jamia Mosque Committee",
+    "relationship": "Project Lead for jamiaGive",
+    "quote": "Khalfan's work on the jamiaGive administrative dashboard revolutionized our donation reporting and category management. The security and performance of the DRF backend are second to none.",
+    "email": "admin@jmc.org",
+    "phone": "+254 711 222 333",
+    "linkedin": "https://linkedin.com",
+    "created_at": "2026-09-17T12:44:18.060Z"
+  }
+}
+]
