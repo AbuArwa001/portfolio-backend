@@ -17,18 +17,23 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if self.request.user.is_authenticated:
             return Project.objects.filter(user=self.request.user)
         else:
-            # Use specific user or default to user ID 2 if not found
             try:
-                specific_user = User.objects.get(email="khalfan@khalfanathman.dev")
-                return Project.objects.filter(user=specific_user)
-            except User.DoesNotExist:
-                # Fallback to user ID 2 if specific user doesn't exist
-                return Project.objects.filter(user_id=2)
+                specific_user = User.objects.filter(email="khalfan@khalfanathman.dev").first() or \
+                                User.objects.filter(username__in=["khalfan", "AbuArwa001", "admin"]).first()
+                if specific_user:
+                    projects = Project.objects.filter(user=specific_user)
+                    if projects.exists():
+                        return projects
+            except Exception:
+                pass
+            return Project.objects.all()
+
     def perform_create(self, serializer):
         """
         Automatically assign the current user to the project when creating
         """
-        serializer.save(user=self.request.user)
+        user = self.request.user if self.request.user.is_authenticated else User.objects.first()
+        serializer.save(user=user)
 
     def update(self, request, *args, **kwargs):
         """

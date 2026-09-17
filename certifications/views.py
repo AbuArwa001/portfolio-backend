@@ -12,7 +12,7 @@ class CertificationViewSet(viewsets.ModelViewSet):
     serializer_class = CertificationSerializer
 
     def perform_create(self, serializer):
-        user = self.request.user
+        user = self.request.user if self.request.user.is_authenticated else User.objects.first()
         serializer.save(user=user)
 
     # def get_queryset(self):
@@ -26,9 +26,14 @@ class CertificationViewSet(viewsets.ModelViewSet):
         if self.request.user.is_authenticated:
             return Certification.objects.filter(user=self.request.user)
         
-        # Otherwise, show certifications for the specific email
+        # Otherwise, show certifications for the owner or all certifications
         try:
-            user = User.objects.get(email='khalfan@khalfanathman.dev')
-            return Certification.objects.filter(user=user)
-        except User.DoesNotExist:
-            return Certification.objects.none()
+            user = User.objects.filter(email='khalfan@khalfanathman.dev').first() or \
+                   User.objects.filter(username__in=['khalfan', 'AbuArwa001', 'admin']).first()
+            if user:
+                certs = Certification.objects.filter(user=user)
+                if certs.exists():
+                    return certs
+        except Exception:
+            pass
+        return Certification.objects.all()
