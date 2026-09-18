@@ -10,10 +10,14 @@ class Reference(models.Model):
     email = models.EmailField(blank=True, default="")
     phone = models.CharField(max_length=50, blank=True, default="")
     linkedin = models.URLField(blank=True, default="")
+    is_approved = models.BooleanField(
+        default=True,
+        help_text="Whether this reference is approved to be publicly displayed",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["created_at"]
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.name} — {self.company}"
