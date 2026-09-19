@@ -11,6 +11,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from certifications.views import CertificationViewSet
 from references.views import ReferenceViewSet
+from resume.views import ResumeViewSet
 
 router = routers.DefaultRouter()
 router.register(r'about', AboutViewSet)
@@ -19,6 +20,7 @@ router.register(r'blog', BlogPostViewSet)
 router.register(r'contact', ContactMessageViewSet)
 router.register(r'certifications', CertificationViewSet)
 router.register(r'references', ReferenceViewSet, basename='reference')
+router.register(r'resume', ResumeViewSet, basename='resume')
 
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view

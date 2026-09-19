@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "references",
     "storages",
     "applications",
+    "resume",
 ]
 
 MIDDLEWARE = [
