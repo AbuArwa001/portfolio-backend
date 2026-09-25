@@ -34,6 +34,12 @@ class JobApplication(models.Model):
     interview_done = models.BooleanField(default=False, verbose_name="Interview Done")
     notes = models.TextField(blank=True, default="")
     
+    # Complete Job Application Tracker Format Fields
+    advert_ref = models.CharField(max_length=255, blank=True, default="", verbose_name="Advert Ref / Grade")
+    key_responsibilities = models.TextField(blank=True, default="", verbose_name="Key Responsibilities")
+    shortlisted = models.BooleanField(default=False, verbose_name="Shortlisted?")
+    closing_date = models.DateField(null=True, blank=True, verbose_name="Closing Date")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
