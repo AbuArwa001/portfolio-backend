@@ -295,5 +295,41 @@ class StudyPlatformTests(TestCase):
         reset_res = self.client.post(f"/api/v1/study/labs/{self.lab.id}/reset_attempt/")
         self.assertEqual(reset_res.status_code, status.HTTP_200_OK)
 
+    def test_aws_lab_verify_and_teardown(self):
+        """Tests AWS verification checklist submission and mandatory teardown confirmation."""
+        self.client.force_authenticate(user=self.user)
+        self.lab.aws_verification_checks = [
+            {"service": "elbv2", "check_type": "Verify ALB HTTP 200", "expected": "HTTP 200"},
+            {"service": "autoscaling", "check_type": "Verify Auto-Recovery", "expected": "Healthy"},
+        ]
+        self.lab.save()
+
+        # 1. Partial checklist verification
+        chk_res1 = self.client.post(f"/api/v1/study/labs/{self.lab.id}/verify_aws_checklist/", {
+            "checked_items": ["Verify ALB HTTP 200"],
+            "time_spent_seconds": 1200
+        }, format="json")
+        self.assertEqual(chk_res1.status_code, status.HTTP_200_OK)
+        self.assertEqual(chk_res1.json()["checker_results"]["score"], 50)
+        self.assertEqual(chk_res1.json()["attempt"]["status"], "in_progress")
+
+        # 2. Complete all checklist checks
+        chk_res2 = self.client.post(f"/api/v1/study/labs/{self.lab.id}/verify_aws_checklist/", {
+            "checked_items": ["Verify ALB HTTP 200", "Verify Auto-Recovery"],
+            "time_spent_seconds": 1800
+        }, format="json")
+        self.assertEqual(chk_res2.status_code, status.HTTP_200_OK)
+        self.assertEqual(chk_res2.json()["checker_results"]["score"], 100)
+
+        # 3. Confirm teardown
+        td_res = self.client.post(f"/api/v1/study/labs/{self.lab.id}/confirm_teardown/", {
+            "notes": "All resources terminated and verified in AWS console.",
+            "time_spent_seconds": 2100
+        }, format="json")
+        self.assertEqual(td_res.status_code, status.HTTP_200_OK)
+        self.assertTrue(td_res.json()["attempt"]["teardown_confirmed"])
+        self.assertEqual(td_res.json()["attempt"]["status"], "completed")
+
+
 
 

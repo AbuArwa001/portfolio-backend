@@ -1296,6 +1296,546 @@ resource "aws_cloudfront_distribution" "cdn" {
 1. CloudFront Distributions cannot be deleted while enabled. Go to CloudFront > Select Distribution > Disable (takes ~2 minutes).
 2. Once status changes to 'Disabled', click Delete.
 3. Go to S3 > Select your static site bucket > Empty (delete all objects) > Delete bucket.""",
+            },
+
+            # 5. Resilient Database: Multi-AZ RDS PostgreSQL with Read Replica
+            {
+                "topic_ref": "2.3",
+                "title": "Multi-AZ Amazon RDS PostgreSQL with Read Replica & Automated Failover",
+                "slug": "lab-aws-multi-az-rds-postgres",
+                "difficulty": "intermediate",
+                "estimated_time_minutes": 45,
+                "estimated_cost_usd": Decimal("0.07"),
+                "free_tier_eligible": False,  # Multi-AZ standby replica counts toward instance hours
+                "prerequisites": "AWS Account, permissions for RDS, VPC, and EC2.",
+                "objectives": [
+                    "Create a Multi-AZ DB Subnet Group spanning 2 private subnets.",
+                    "Provision an Amazon RDS PostgreSQL instance with Multi-AZ synchronous standby replication enabled.",
+                    "Deploy an asynchronous cross-AZ Read Replica to scale read throughput.",
+                    "Simulate an AZ outage using 'Reboot with Failover' and verify seamless DNS endpoint transition in under 60 seconds."
+                ],
+                "topology_type": "svg",
+                "topology_data": make_aws_vpc_svg("Multi-AZ RDS High Availability & Read Replica", [
+                    "AZ-A: Primary DB Instance (Read/Write)",
+                    "AZ-B: Synchronous Standby Replica (Automatic Failover)",
+                    "AZ-C: Asynchronous Read Replica (Read Scaling)"
+                ]),
+                "addressing_table": [
+                    {"device": "RDS Primary Endpoint", "interface": "Port 5432", "ip": "rds-prod.c123.us-east-1.rds.amazonaws.com", "subnet": "Private Subnet 1 (AZ-A)", "vlan": "Primary RW", "default_gateway": "N/A"},
+                    {"device": "RDS Standby Replica", "interface": "Port 5432", "ip": "Automated DNS failover target", "subnet": "Private Subnet 2 (AZ-B)", "vlan": "Standby Sync", "default_gateway": "N/A"},
+                    {"device": "RDS Read Replica", "interface": "Port 5432", "ip": "rds-read.c123.us-east-1.rds.amazonaws.com", "subnet": "Private Subnet 3 (AZ-C)", "vlan": "Read Only", "default_gateway": "N/A"},
+                ],
+                "step_by_step_tasks": [
+                    {
+                        "step_num": 1,
+                        "title": "Create DB Subnet Group across 2+ Availability Zones",
+                        "instructions": "Navigate to RDS > Subnet groups > Create DB subnet group. Name: 'rds-ha-subnet-group'. Select your VPC and add private subnets in us-east-1a and us-east-1b.",
+                        "verify_prompt": "Confirm subnet group spans at least 2 distinct Availability Zones."
+                    },
+                    {
+                        "step_num": 2,
+                        "title": "Provision PostgreSQL with Multi-AZ Deployment",
+                        "instructions": "Go to RDS > Databases > Create database. Select PostgreSQL, Free tier template (or Dev/Test for Multi-AZ), Instance class: db.t3.micro or db.t4g.micro. In Availability & durability, choose 'Multi-AZ DB instance'. Set master username and credentials.",
+                        "verify_prompt": "Wait for database status to become 'Available'."
+                    },
+                    {
+                        "step_num": 3,
+                        "title": "Create Read Replica",
+                        "instructions": "Select your active database > Actions > Create read replica. Name: 'rds-prod-read-replica'. Choose an alternate Availability Zone.",
+                        "verify_prompt": "Wait for Read Replica to show 'Available' and note its separate endpoint."
+                    },
+                    {
+                        "step_num": 4,
+                        "title": "Simulate Outage via Reboot with Failover",
+                        "instructions": "Select the primary database > Actions > Reboot. Check 'Reboot with failover?'. Click Reboot. Monitor the Events tab to see RDS promote the secondary standby to primary.",
+                        "verify_prompt": "Observe failover completion in RDS event logs in under 60 seconds."
+                    }
+                ],
+                "hints": [
+                    "Exam Tip: Multi-AZ standby replica is SYNCHRONOUS for high availability and disaster recovery; it cannot be accessed directly for read queries. Read Replicas are ASYNCHRONOUS and used for scaling read throughput.",
+                    "Cost Tip: Uncheck 'Create final snapshot' when deleting test RDS instances to avoid recurring snapshot storage charges."
+                ],
+                "setup_template_type": "cloudformation",
+                "setup_template": """AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS SAA-C03: Multi-AZ Amazon RDS PostgreSQL Architecture'
+Resources:
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnets for Multi-AZ RDS
+      SubnetIds:
+        - !ImportValue PubSubnetA-Id
+        - !ImportValue PubSubnetB-Id
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: saa-rds-primary
+      AllocatedStorage: 20
+      DBInstanceClass: db.t4g.micro
+      Engine: postgres
+      EngineVersion: '16.1'
+      MasterUsername: postgresadmin
+      MasterUserPassword: StrongPassword2026!
+      MultiAZ: true
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      PubliclyAccessible: false
+""",
+                "solution": """# Terraform Multi-AZ RDS Architecture
+resource "aws_db_subnet_group" "db_subnets" {
+  name       = "tf-rds-subnet-group"
+  subnet_ids = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+}
+
+resource "aws_db_instance" "primary" {
+  identifier           = "tf-postgres-primary"
+  allocated_storage    = 20
+  engine               = "postgres"
+  engine_version       = "16.1"
+  instance_class       = "db.t4g.micro"
+  username             = "postgresadmin"
+  password             = "StrongPassword2026!"
+  multi_az             = true
+  db_subnet_group_name = aws_db_subnet_group.db_subnets.name
+  skip_final_snapshot  = true
+}
+
+resource "aws_db_instance" "read_replica" {
+  identifier          = "tf-postgres-replica"
+  replicate_source_db = aws_db_instance.primary.identifier
+  instance_class      = "db.t4g.micro"
+  skip_final_snapshot = true
+}
+""",
+                "aws_verification_checks": [
+                    {
+                        "service": "rds",
+                        "check_type": "Verify Multi-AZ Synchronous Status",
+                        "verify_prompt": "Check RDS console details for Primary DB: verify Multi-AZ is set to 'Yes' and Secondary AZ is listed.",
+                        "expected": "Multi-AZ: Yes"
+                    },
+                    {
+                        "service": "rds",
+                        "check_type": "Execute Reboot with Failover",
+                        "verify_prompt": "Reboot primary database with failover enabled. Verify in Event Log that RDS detects the failover and promotes the standby instance.",
+                        "expected": "Failover completed successfully"
+                    }
+                ],
+                "teardown_instructions": """TEARDOWN CHECKLIST:
+1. Delete Read Replica first (RDS > Databases > Select Replica > Delete > Do not create final snapshot).
+2. Delete Primary RDS Instance (RDS > Databases > Select Primary > Delete > Uncheck 'Create final snapshot' > Type 'delete me').
+3. Delete DB Subnet Group.""",
+            },
+
+            # 6. Decoupled Architecture: SNS + SQS Fanout with DLQ
+            {
+                "topic_ref": "3.4",
+                "title": "Decoupled Event Fanout with Amazon SNS and SQS Dead-Letter Queues (DLQ)",
+                "slug": "lab-aws-sns-sqs-fanout-dlq",
+                "difficulty": "beginner",
+                "estimated_time_minutes": 35,
+                "estimated_cost_usd": Decimal("0.00"),
+                "free_tier_eligible": True,  # 100% Free Tier (1M SNS publishes/mo + 1M SQS requests/mo)
+                "prerequisites": "AWS Account, permissions for SNS and SQS.",
+                "objectives": [
+                    "Create an Amazon SNS Standard topic to broadcast order creation events.",
+                    "Create two Amazon SQS queues (Inventory and Analytics) and subscribe both to the SNS topic (Fanout pattern).",
+                    "Configure an SQS Dead-Letter Queue (DLQ) with a maximum receive count of 3 to catch poison pill messages.",
+                    "Publish a test payload to SNS and verify both subscriber queues receive a copy independently."
+                ],
+                "topology_type": "svg",
+                "topology_data": make_aws_serverless_svg("Decoupled Event Fanout (SNS -> SQS + DLQ)"),
+                "addressing_table": [
+                    {"device": "SNS Topic", "interface": "Topic ARN", "ip": "arn:aws:sns:us-east-1:...:orders-fanout-topic", "subnet": "Pub/Sub Messaging", "vlan": "Broadcast", "default_gateway": "N/A"},
+                    {"device": "Inventory Queue", "interface": "Queue URL", "ip": "https://sqs.us-east-1.amazonaws.com/.../inventory-queue", "subnet": "Microservice A", "vlan": "Consumer", "default_gateway": "N/A"},
+                    {"device": "Analytics Queue", "interface": "Queue URL", "ip": "https://sqs.us-east-1.amazonaws.com/.../analytics-queue", "subnet": "Microservice B", "vlan": "Consumer", "default_gateway": "N/A"},
+                    {"device": "Dead-Letter Queue", "interface": "Queue URL", "ip": "https://sqs.us-east-1.amazonaws.com/.../orders-dlq", "subnet": "Poison Message Trap", "vlan": "DLQ", "default_gateway": "N/A"},
+                ],
+                "step_by_step_tasks": [
+                    {
+                        "step_num": 1,
+                        "title": "Create Amazon SNS Topic",
+                        "instructions": "Navigate to SNS > Topics > Create topic. Type: Standard. Name: 'orders-fanout-topic'.",
+                        "verify_prompt": "Note the Topic ARN."
+                    },
+                    {
+                        "step_num": 2,
+                        "title": "Create Dead-Letter Queue & SQS Consumer Queues",
+                        "instructions": "Go to SQS > Create queue. Create 'orders-dlq' (Standard). Then create 'inventory-queue' and 'analytics-queue'. Under Dead-letter queue settings for both, enable DLQ and select 'orders-dlq' with Maximum receives = 3.",
+                        "verify_prompt": "Confirm DLQ is linked to both primary queues."
+                    },
+                    {
+                        "step_num": 3,
+                        "title": "Subscribe SQS Queues to SNS Topic (Fanout)",
+                        "instructions": "Go to SNS > Subscriptions > Create subscription. Topic: 'orders-fanout-topic'. Protocol: Amazon SQS. Endpoint: ARN of 'inventory-queue'. Repeat for 'analytics-queue'. Confirm SNS updates the SQS access policies automatically.",
+                        "verify_prompt": "Confirm Subscription status is 'Confirmed' for both."
+                    },
+                    {
+                        "step_num": 4,
+                        "title": "Publish Message and Verify Fanout Delivery",
+                        "instructions": "In SNS console > Select 'orders-fanout-topic' > Publish message. Body: JSON payload `{\"order_id\":\"98765\",\"amount\":\"129.00\"}`. Click Publish.",
+                        "verify_prompt": "Poll messages in both inventory-queue and analytics-queue. Verify each received the identical JSON message."
+                    }
+                ],
+                "hints": [
+                    "Exam Tip: SNS-to-SQS Fanout enables asynchronous decoupling where new consumer microservices can subscribe without modifying the producer application.",
+                    "Key Concept: SQS Standard provides at-least-once delivery with nearly unlimited throughput. SQS FIFO provides exactly-once processing and strict ordering up to 3,000 msgs/sec with batching."
+                ],
+                "setup_template_type": "cloudformation",
+                "setup_template": """AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS SAA-C03: SNS to SQS Fanout Architecture with Dead-Letter Queue'
+Resources:
+  OrdersTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: orders-fanout-topic
+
+  OrdersDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: orders-dlq
+
+  InventoryQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: inventory-queue
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt OrdersDLQ.Arn
+        maxReceiveCount: 3
+
+  AnalyticsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: analytics-queue
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt OrdersDLQ.Arn
+        maxReceiveCount: 3
+
+  InventoryQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref InventoryQueue]
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: {Service: sns.amazonaws.com}
+            Action: sqs:SendMessage
+            Resource: !GetAtt InventoryQueue.Arn
+            Condition:
+              ArnEquals: {aws:SourceArn: !Ref OrdersTopic}
+
+  AnalyticsQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref AnalyticsQueue]
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: {Service: sns.amazonaws.com}
+            Action: sqs:SendMessage
+            Resource: !GetAtt AnalyticsQueue.Arn
+            Condition:
+              ArnEquals: {aws:SourceArn: !Ref OrdersTopic}
+
+  InventorySubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref OrdersTopic
+      Protocol: sqs
+      Endpoint: !GetAtt InventoryQueue.Arn
+
+  AnalyticsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref OrdersTopic
+      Protocol: sqs
+      Endpoint: !GetAtt AnalyticsQueue.Arn
+""",
+                "solution": """# Terraform SNS-to-SQS Fanout Architecture
+resource "aws_sns_topic" "orders" {
+  name = "orders-fanout-topic"
+}
+
+resource "aws_sqs_queue" "dlq" {
+  name = "orders-dlq"
+}
+
+resource "aws_sqs_queue" "inventory" {
+  name = "inventory-queue"
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.dlq.arn
+    maxReceiveCount     = 3
+  })
+}
+
+resource "aws_sqs_queue" "analytics" {
+  name = "analytics-queue"
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.dlq.arn
+    maxReceiveCount     = 3
+  })
+}
+
+resource "aws_sns_topic_subscription" "sub_inv" {
+  topic_arn = aws_sns_topic.orders.arn
+  protocol  = "sqs"
+  endpoint  = aws_sqs_queue.inventory.arn
+}
+
+resource "aws_sns_topic_subscription" "sub_ana" {
+  topic_arn = aws_sns_topic.orders.arn
+  protocol  = "sqs"
+  endpoint  = aws_sqs_queue.analytics.arn
+}
+""",
+                "aws_verification_checks": [
+                    {
+                        "service": "sns",
+                        "check_type": "Verify SNS Fanout Dual Delivery",
+                        "verify_prompt": "Publish a message to 'orders-fanout-topic'. Poll messages in 'inventory-queue' and 'analytics-queue'. Verify both received the message.",
+                        "expected": "Both queues receive identical message"
+                    },
+                    {
+                        "service": "sqs",
+                        "check_type": "Verify Dead-Letter Queue Redrive",
+                        "verify_prompt": "Receive and reject a message 3 times in inventory-queue. Confirm SQS moves the message automatically to orders-dlq.",
+                        "expected": "Poison message routed to DLQ"
+                    }
+                ],
+                "teardown_instructions": """TEARDOWN CHECKLIST:
+1. Delete SNS Subscriptions.
+2. Delete SNS Topic 'orders-fanout-topic'.
+3. Delete SQS Queues: 'inventory-queue', 'analytics-queue', and 'orders-dlq'.""",
+            },
+
+            # 7. Cost-Optimized Storage: S3 Lifecycle & Intelligent-Tiering
+            {
+                "topic_ref": "4.1",
+                "title": "S3 Lifecycle Policies & Intelligent-Tiering Cost Optimization",
+                "slug": "lab-aws-s3-lifecycle-intelligent-tiering",
+                "difficulty": "beginner",
+                "estimated_time_minutes": 30,
+                "estimated_cost_usd": Decimal("0.00"),
+                "free_tier_eligible": True,  # 100% Free Tier
+                "prerequisites": "AWS Account with S3 permissions.",
+                "objectives": [
+                    "Create an Amazon S3 bucket with Object Versioning enabled.",
+                    "Configure automated Lifecycle Configuration rules with multi-tier transitions (Standard -> Standard-IA -> Glacier Flexible Retrieval).",
+                    "Enable S3 Intelligent-Tiering for objects with unpredictable access patterns.",
+                    "Configure non-current version expiration after 90 days to eliminate orphan storage costs."
+                ],
+                "topology_type": "svg",
+                "topology_data": make_aws_edge_svg("S3 Lifecycle Multi-Tier Automated Cost Optimization"),
+                "addressing_table": [
+                    {"device": "S3 Standard", "interface": "Day 0 - 30", "ip": "Frequent Access ($0.023/GB)", "subnet": "Tier 1", "vlan": "Active", "default_gateway": "N/A"},
+                    {"device": "S3 Standard-IA", "interface": "Day 30 - 90", "ip": "Infrequent Access ($0.0125/GB, 45% savings)", "subnet": "Tier 2", "vlan": "Warm", "default_gateway": "N/A"},
+                    {"device": "S3 Glacier Flexible", "interface": "Day 90+", "ip": "Archive ($0.0036/GB, 84% savings)", "subnet": "Tier 3", "vlan": "Cold", "default_gateway": "N/A"},
+                ],
+                "step_by_step_tasks": [
+                    {
+                        "step_num": 1,
+                        "title": "Create Bucket with Versioning Enabled",
+                        "instructions": "Navigate to S3 > Create bucket. Bucket name: 'cost-opt-storage-<your-id>'. Enable Bucket Versioning. Click Create bucket.",
+                        "verify_prompt": "Confirm Versioning shows 'Enabled'."
+                    },
+                    {
+                        "step_num": 2,
+                        "title": "Configure Lifecycle Transitions for Current Versions",
+                        "instructions": "Go to Management > Lifecycle rules > Create lifecycle rule. Rule name: 'TieringArchiveRule'. Filter: apply to all objects. Action: Move current versions between storage classes. Transition to Standard-IA after 30 days. Transition to Glacier Flexible Retrieval after 90 days.",
+                        "verify_prompt": "Review transition timeline preview."
+                    },
+                    {
+                        "step_num": 3,
+                        "title": "Configure Non-Current Version Expiration",
+                        "instructions": "In the same rule, check 'Permanently delete noncurrent versions of objects'. Set 'Days after objects become noncurrent' to 90 days.",
+                        "verify_prompt": "Confirm rule shows both current class transitions and noncurrent expiration."
+                    }
+                ],
+                "hints": [
+                    "Exam Tip: S3 Standard-IA has a minimum billable object size of 128KB and a 30-day minimum storage duration. For objects smaller than 128KB, keeping in Standard is often cheaper!",
+                    "Exam Tip: S3 Intelligent-Tiering has no retrieval fees. It charges a small monthly monitoring fee per 1,000 objects."
+                ],
+                "setup_template_type": "cloudformation",
+                "setup_template": """AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS SAA-C03: S3 Lifecycle Management & Cost Optimization'
+Resources:
+  CostOptimizedBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: TieringRule
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
+              - TransitionInDays: 90
+                StorageClass: GLACIER
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 90
+""",
+                "solution": """# Terraform S3 Lifecycle Configuration
+resource "aws_s3_bucket" "cost_opt" {
+  bucket_prefix = "saa-cost-opt-"
+}
+
+resource "aws_s3_bucket_versioning" "versioning" {
+  bucket = aws_s3_bucket.cost_opt.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "rule" {
+  bucket = aws_s3_bucket.cost_opt.id
+  rule {
+    id     = "auto-tiering-and-cleanup"
+    status = "Enabled"
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+    transition {
+      days          = 90
+      storage_class = "GLACIER"
+    }
+    noncurrent_version_expiration {
+      noncurrent_days = 90
+    }
+  }
+}
+""",
+                "aws_verification_checks": [
+                    {
+                        "service": "s3",
+                        "check_type": "Verify S3 Lifecycle Rule Configuration",
+                        "verify_prompt": "Check S3 Management tab > Lifecycle rules. Confirm 'TieringArchiveRule' is Active with transitions at Day 30 and Day 90.",
+                        "expected": "Lifecycle rule Active"
+                    }
+                ],
+                "teardown_instructions": """TEARDOWN CHECKLIST:
+1. Go to S3 > Select bucket > Empty (delete all current and noncurrent object versions).
+2. Delete the S3 bucket.""",
+            },
+
+            # 8. Secure: AWS KMS Envelope Encryption & Secrets Manager
+            {
+                "topic_ref": "1.5",
+                "title": "Envelope Encryption with AWS KMS & Automated Secret Rotation in Secrets Manager",
+                "slug": "lab-aws-kms-secrets-manager",
+                "difficulty": "intermediate",
+                "estimated_time_minutes": 40,
+                "estimated_cost_usd": Decimal("0.02"),
+                "free_tier_eligible": False,  # KMS CMK ($1/mo prorated) + Secrets Manager ($0.40/secret prorated)
+                "prerequisites": "AWS Account with KMS, Secrets Manager, and IAM permissions.",
+                "objectives": [
+                    "Create an AWS KMS Customer Managed Key (CMK) with automatic annual key rotation enabled.",
+                    "Configure an IAM Key Policy adhering strictly to the principle of least privilege.",
+                    "Store sensitive database credentials in AWS Secrets Manager encrypted using the KMS CMK.",
+                    "Test retrieving secrets programmatically via AWS CLI / SDK and verify CloudTrail audit logs."
+                ],
+                "topology_type": "svg",
+                "topology_data": make_aws_serverless_svg("KMS Envelope Encryption & Secrets Manager Architecture"),
+                "addressing_table": [
+                    {"device": "AWS KMS CMK", "interface": "Key ARN", "ip": "arn:aws:kms:us-east-1:...:key/a1b2c3d4-...", "subnet": "Hardware Security Module (FIPS 140-2)", "vlan": "KMS", "default_gateway": "N/A"},
+                    {"device": "Secrets Manager", "interface": "Secret ARN", "ip": "arn:aws:secretsmanager:us-east-1:...:secret:prod/db/creds-...", "subnet": "Encrypted Credential Store", "vlan": "Secrets", "default_gateway": "N/A"},
+                ],
+                "step_by_step_tasks": [
+                    {
+                        "step_num": 1,
+                        "title": "Create KMS Customer Managed Key (CMK)",
+                        "instructions": "Navigate to KMS > Customer managed keys > Create key. Key type: Symmetric. Usage: Encrypt and decrypt. Alias: 'app-cmk'. In Key Rotation, check 'Automatically rotate this KMS key every year'.",
+                        "verify_prompt": "Confirm key rotation is 'Enabled'."
+                    },
+                    {
+                        "step_num": 2,
+                        "title": "Store Encrypted Secret in AWS Secrets Manager",
+                        "instructions": "Go to Secrets Manager > Store a new secret. Secret type: Other type of secret. Key/Value pairs: username = dbadmin, password = SuperSecret2026!. Encryption key: select 'app-cmk'. Secret name: 'prod/app/db-credentials'.",
+                        "verify_prompt": "Save secret and note the Secret ARN."
+                    },
+                    {
+                        "step_num": 3,
+                        "title": "Retrieve and Decrypt Secret via AWS CLI",
+                        "instructions": "Run command: `aws secretsmanager get-secret-value --secret-id prod/app/db-credentials`. Verify the decrypted SecretString is returned.",
+                        "verify_prompt": "Check AWS CloudTrail Event History to confirm the Decrypt API call was audited with your IAM principal."
+                    }
+                ],
+                "hints": [
+                    "Exam Tip: Envelope encryption means plaintext data is encrypted with a unique Data Key, and the Data Key is encrypted under a KMS Key (CMK). KMS never stores the data key.",
+                    "Cost Tip: KMS keys cost $1.00/month if active. You must schedule them for deletion (7 to 30 days waiting period)."
+                ],
+                "setup_template_type": "cloudformation",
+                "setup_template": """AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS SAA-C03: KMS CMK and Secrets Manager Architecture'
+Resources:
+  AppKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: KMS CMK for Application Secrets
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnableIAMUserPermissions
+            Effect: Allow
+            Principal: {AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'}
+            Action: 'kms:*'
+            Resource: '*'
+
+  AppKmsAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/app-cmk
+      TargetKeyId: !Ref AppKmsKey
+
+  AppSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: prod/app/db-credentials
+      Description: Database credentials encrypted with CMK
+      KmsKeyId: !Ref AppKmsKey
+      SecretString: '{"username":"dbadmin","password":"SuperSecret2026!"}'
+""",
+                "solution": """# Terraform KMS & Secrets Manager
+resource "aws_kms_key" "app_cmk" {
+  description             = "App CMK Key"
+  enable_key_rotation     = true
+  deletion_window_in_days = 7
+}
+
+resource "aws_kms_alias" "alias" {
+  name          = "alias/tf-app-cmk"
+  target_key_id = aws_kms_key.app_cmk.key_id
+}
+
+resource "aws_secretsmanager_secret" "db_secret" {
+  name       = "prod/app/tf-db-credentials"
+  kms_key_id = aws_kms_key.app_cmk.arn
+}
+
+resource "aws_secretsmanager_secret_version" "secret_val" {
+  secret_id     = aws_secretsmanager_secret.db_secret.id
+  secret_string = jsonencode({ username = "dbadmin", password = "SuperSecret2026!" })
+}
+""",
+                "aws_verification_checks": [
+                    {
+                        "service": "secretsmanager",
+                        "check_type": "Verify Secret Value Retrieval",
+                        "verify_prompt": "Run `aws secretsmanager get-secret-value --secret-id prod/app/db-credentials` and confirm JSON payload returned.",
+                        "expected": "Secret decrypted and returned successfully"
+                    },
+                    {
+                        "service": "cloudtrail",
+                        "check_type": "Audit KMS Decrypt in CloudTrail",
+                        "verify_prompt": "Open CloudTrail > Event History. Verify KMS Decrypt event generated by Secrets Manager with eventSource 'kms.amazonaws.com'.",
+                        "expected": "KMS Decrypt event logged in CloudTrail"
+                    }
+                ],
+                "teardown_instructions": """TEARDOWN CHECKLIST:
+1. Delete secret in Secrets Manager: Select 'prod/app/db-credentials' > Actions > Delete secret > Check 'Delete secret immediately without 7-day waiting period'.
+2. Schedule KMS Key for deletion: KMS > Customer managed keys > Select 'app-cmk' > Key actions > Schedule key deletion (choose 7 days).""",
             }
         ]
 
