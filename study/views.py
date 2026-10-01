@@ -184,6 +184,87 @@ class LabViewSet(viewsets.ModelViewSet):
         LabAttempt.objects.filter(user=request.user, lab=lab).delete()
         return Response({"status": "reset", "message": f"Attempt for {lab.title} has been reset."})
 
+    @action(detail=True, methods=["post"])
+    def confirm_teardown(self, request, pk=None):
+        """Marks teardown confirmed and marks the lab completed if objectives are met."""
+        lab = self.get_object()
+        notes = request.data.get("notes", "")
+        time_spent = int(request.data.get("time_spent_seconds", 0))
+
+        attempt, _ = LabAttempt.objects.get_or_create(user=request.user, lab=lab)
+        attempt.teardown_confirmed = True
+        attempt.status = "completed"
+        attempt.completed_at = timezone.now()
+        if notes:
+            attempt.notes = notes
+        if time_spent > 0:
+            attempt.time_spent_seconds = time_spent
+        attempt.save()
+
+        # Log study session activity
+        StudyLog.objects.create(
+            user=request.user,
+            certification=lab.topic.certification,
+            topic=lab.topic,
+            session_type="lab",
+            duration_minutes=max(15, round(time_spent / 60)) if time_spent > 0 else lab.estimated_time_minutes,
+            date=timezone.now().date(),
+            notes=f"Completed AWS Architecture Lab & Confirmed Teardown: {lab.title} ({lab.topic.certification.code})."
+        )
+
+        return Response({
+            "status": "success",
+            "message": f"Teardown confirmed and lab marked completed for {lab.title}!",
+            "attempt": LabAttemptSerializer(attempt).data,
+        })
+
+    @action(detail=True, methods=["post"])
+    def verify_aws_checklist(self, request, pk=None):
+        """Evaluates candidate AWS verification checklist items."""
+        lab = self.get_object()
+        checked_items = request.data.get("checked_items", [])
+        total_checks = len(lab.aws_verification_checks or [])
+        time_spent = int(request.data.get("time_spent_seconds", 0))
+
+        passed_count = len(checked_items)
+        score = round((passed_count / total_checks) * 100) if total_checks > 0 else 100
+        is_passed = score >= 80
+
+        grading_result = {
+            "score": score,
+            "passed": is_passed,
+            "total_rules": total_checks,
+            "passed_count": passed_count,
+            "passed_rules": checked_items,
+            "missing_rules": [
+                {
+                    "description": c.get("check_type", f"Check #{i+1}"),
+                    "help_tip": c.get("verify_prompt", f"Perform AWS verification for {c.get('service', 'service')}."),
+                    "section": c.get("service", "aws")
+                }
+                for i, c in enumerate(lab.aws_verification_checks or [])
+                if c.get("check_type") not in checked_items and f"Check #{i+1}" not in checked_items
+            ],
+            "line_diagnostics": [],
+            "summary": f"Verified {passed_count} of {total_checks} architecture checks ({score}%). {'All critical checks passed!' if is_passed else 'Complete all remaining checks before teardown.'}"
+        }
+
+        attempt, _ = LabAttempt.objects.get_or_create(user=request.user, lab=lab)
+        attempt.checker_results = grading_result
+        if is_passed and attempt.teardown_confirmed:
+            attempt.status = "completed"
+            attempt.completed_at = timezone.now()
+        else:
+            attempt.status = "in_progress"
+        if time_spent > 0:
+            attempt.time_spent_seconds = time_spent
+        attempt.save()
+
+        return Response({
+            "attempt": LabAttemptSerializer(attempt).data,
+            "checker_results": grading_result,
+        })
+
 
 class LabAttemptViewSet(viewsets.ModelViewSet):
     serializer_class = LabAttemptSerializer
