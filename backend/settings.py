@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     "storages",
     "applications",
     "resume",
+    "study",
 ]
 
 MIDDLEWARE = [
