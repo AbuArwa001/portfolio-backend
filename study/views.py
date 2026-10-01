@@ -429,6 +429,59 @@ class QuestionViewSet(viewsets.ModelViewSet):
         question.save(update_fields=["is_reported", "report_reason"])
         return Response({"status": "reported", "message": "Thank you for the report"})
 
+    @action(detail=False, methods=["get"])
+    def export_data(self, request):
+        """Exports questions (filtered by cert/topic or all) as downloadable JSON."""
+        qs = self.get_queryset()
+        serializer = QuestionSerializer(qs, many=True)
+        return Response({
+            "exported_at": timezone.now().isoformat(),
+            "count": qs.count(),
+            "questions": serializer.data,
+        })
+
+    @action(detail=False, methods=["post"])
+    def import_data(self, request):
+        """Imports questions from a JSON array with deduplication by topic + text."""
+        questions_data = request.data.get("questions", [])
+        if not isinstance(questions_data, list):
+            return Response({"error": "questions array is required"}, status=status.HTTP_400_BAD_REQUEST)
+        created_count = 0
+        updated_count = 0
+        for item in questions_data:
+            text = item.get("text")
+            topic_id = item.get("topic")
+            cert_id = item.get("certification")
+            if not text or not topic_id or not cert_id:
+                continue
+            defaults = {
+                "question_type": item.get("question_type", "single_choice"),
+                "scenario_context": item.get("scenario_context", ""),
+                "code_output": item.get("code_output", ""),
+                "options": item.get("options", []),
+                "correct_answers": item.get("correct_answers", []),
+                "explanation": item.get("explanation", ""),
+                "distractor_notes": item.get("distractor_notes", {}),
+                "trigger_words": item.get("trigger_words", ""),
+                "difficulty": item.get("difficulty", "medium"),
+            }
+            q, created = Question.objects.update_or_create(
+                certification_id=cert_id,
+                topic_id=topic_id,
+                text=text,
+                defaults=defaults
+            )
+            if created:
+                created_count += 1
+            else:
+                updated_count += 1
+        return Response({
+            "status": "success",
+            "created_count": created_count,
+            "updated_count": updated_count,
+            "total_processed": len(questions_data)
+        })
+
     @action(detail=False, methods=["post"])
     def generate(self, request):
         """Calls Claude API server-side to generate N questions for a topic."""
@@ -815,6 +868,17 @@ class FlashcardViewSet(viewsets.ModelViewSet):
         flashcard.save()
 
         return Response(FlashcardSerializer(flashcard).data)
+
+    @action(detail=False, methods=["get"])
+    def export_data(self, request):
+        """Exports user flashcards as downloadable JSON."""
+        qs = self.get_queryset()
+        serializer = FlashcardSerializer(qs, many=True)
+        return Response({
+            "exported_at": timezone.now().isoformat(),
+            "count": qs.count(),
+            "flashcards": serializer.data,
+        })
 
 
 class StudyNoteViewSet(viewsets.ModelViewSet):
