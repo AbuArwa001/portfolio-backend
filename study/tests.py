@@ -233,4 +233,67 @@ class StudyPlatformTests(TestCase):
         self.assertIn("verdict", eval_data["feedback"])
         self.assertIn("strengths", eval_data["feedback"])
 
+    def test_cisco_config_checker_logic(self):
+        """Tests pure grading engine logic with abbreviation expansion and negative checks."""
+        from study.config_checker import grade_cisco_config
+
+        rules = [
+            {"pattern": r"vlan\s+10\b", "description": "VLAN 10 created", "weight": 2},
+            {"section": "interface gigabitethernet0/1", "pattern": r"switchport\s+mode\s+trunk\b", "description": "Trunk on Gi0/1", "weight": 3},
+            {"section": "interface gigabitethernet0/1", "pattern": r"switchport\s+trunk\s+native\s+vlan\s+99\b", "description": "Native VLAN 99", "weight": 3},
+        ]
+
+        # Valid config with abbreviations
+        valid_input = """
+        SW1# conf t
+        vlan 10
+         name Sales
+        int gi0/1
+         sw mo tr
+         sw tr native vlan 99
+         no shut
+        end
+        """
+        result = grade_cisco_config(valid_input, rules)
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["score"], 100)
+        self.assertEqual(len(result["passed_rules"]), 3)
+        self.assertEqual(len(result["missing_rules"]), 0)
+
+        # Incomplete config (missing native vlan)
+        incomplete_input = """
+        vlan 10
+        interface gigabitethernet0/1
+         switchport mode trunk
+        """
+        res_incomplete = grade_cisco_config(incomplete_input, rules)
+        self.assertFalse(res_incomplete["passed"])
+        self.assertIn(res_incomplete["score"], [62, 63])
+        self.assertEqual(len(res_incomplete["missing_rules"]), 1)
+        self.assertEqual(res_incomplete["missing_rules"][0]["description"], "Native VLAN 99")
+
+    def test_lab_check_config_endpoint(self):
+        """Tests posting candidate configuration to the lab check_config API endpoint."""
+        self.client.force_authenticate(user=self.user)
+        self.lab.expected_config_rules = [
+            {"pattern": r"vlan\s+10\b", "description": "VLAN 10 created", "weight": 5},
+            {"pattern": r"switchport\s+mode\s+trunk\b", "description": "Trunk port enabled", "weight": 5},
+        ]
+        self.lab.save()
+
+        # Submit passing config
+        pass_res = self.client.post(f"/api/v1/study/labs/{self.lab.id}/check_config/", {
+            "submitted_config": "vlan 10\ninterface GigabitEthernet0/1\n switchport mode trunk",
+            "time_spent_seconds": 600
+        }, format="json")
+        self.assertEqual(pass_res.status_code, status.HTTP_200_OK)
+        pass_data = pass_res.json()
+        self.assertEqual(pass_data["checker_results"]["score"], 100)
+        self.assertEqual(pass_data["attempt"]["status"], "completed")
+
+        # Test reset attempt
+        reset_res = self.client.post(f"/api/v1/study/labs/{self.lab.id}/reset_attempt/")
+        self.assertEqual(reset_res.status_code, status.HTTP_200_OK)
+
+
 

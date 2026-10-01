@@ -44,6 +44,7 @@ from .ai_service import (
     mock_interview_turn_with_claude,
     mock_interview_evaluate_with_claude,
 )
+from .config_checker import grade_cisco_config
 
 
 class StudyCertificationViewSet(viewsets.ModelViewSet):
@@ -137,6 +138,51 @@ class LabViewSet(viewsets.ModelViewSet):
         if difficulty:
             qs = qs.filter(difficulty=difficulty)
         return qs
+
+    @action(detail=True, methods=["post"])
+    def check_config(self, request, pk=None):
+        """Grades candidate submitted Cisco IOS configuration or show commands against the lab's rules."""
+        lab = self.get_object()
+        submitted_text = request.data.get("submitted_config", "").strip()
+        time_spent = int(request.data.get("time_spent_seconds", 0))
+
+        grading_result = grade_cisco_config(submitted_text, lab.expected_config_rules or [])
+        is_completed = grading_result.get("passed", False)
+
+        attempt, _ = LabAttempt.objects.update_or_create(
+            user=request.user,
+            lab=lab,
+            defaults={
+                "status": "completed" if is_completed else "in_progress",
+                "submitted_config": submitted_text,
+                "checker_results": grading_result,
+                "time_spent_seconds": time_spent,
+                "completed_at": timezone.now() if is_completed else None,
+            }
+        )
+
+        if is_completed:
+            StudyLog.objects.create(
+                user=request.user,
+                certification=lab.topic.certification,
+                topic=lab.topic,
+                session_type="lab",
+                duration_minutes=max(10, round(time_spent / 60)) if time_spent > 0 else lab.estimated_time_minutes,
+                date=timezone.now().date(),
+                notes=f"Completed Lab: {lab.title} ({lab.topic.certification.code}). Score: {grading_result['score']}%."
+            )
+
+        return Response({
+            "attempt": LabAttemptSerializer(attempt).data,
+            "checker_results": grading_result,
+        })
+
+    @action(detail=True, methods=["post"])
+    def reset_attempt(self, request, pk=None):
+        """Resets the candidate's attempt for this lab so they can start fresh."""
+        lab = self.get_object()
+        LabAttempt.objects.filter(user=request.user, lab=lab).delete()
+        return Response({"status": "reset", "message": f"Attempt for {lab.title} has been reset."})
 
 
 class LabAttemptViewSet(viewsets.ModelViewSet):
