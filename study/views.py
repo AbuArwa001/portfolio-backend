@@ -38,6 +38,7 @@ from .serializers import (
     StudyLogSerializer,
     StudyGoalSerializer,
 )
+from .ai_service import generate_questions_with_claude
 
 
 class StudyCertificationViewSet(viewsets.ModelViewSet):
@@ -185,6 +186,47 @@ class QuestionViewSet(viewsets.ModelViewSet):
         question.save(update_fields=["is_reported", "report_reason"])
         return Response({"status": "reported", "message": "Thank you for the report"})
 
+    @action(detail=False, methods=["post"])
+    def generate(self, request):
+        """Calls Claude API server-side to generate N questions for a topic."""
+        topic_id = request.data.get("topic_id")
+        if not topic_id:
+            return Response({"error": "topic_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        topic = get_object_or_404(Topic, id=topic_id)
+        count = min(int(request.data.get("count", 10)), 25)
+        difficulty = request.data.get("difficulty", "medium")
+
+        created_questions, message = generate_questions_with_claude(topic, count=count, difficulty=difficulty)
+        serializer = QuestionSerializer(created_questions, many=True)
+        return Response({
+            "message": message,
+            "created_count": len(created_questions),
+            "questions": serializer.data
+        })
+
+    @action(detail=False, methods=["get"])
+    def retry_queue(self, request):
+        """Returns questions previously answered incorrectly by the user that are queued for retry."""
+        cert_code = request.query_params.get("cert")
+        wrong_q_ids = ExamAnswer.objects.filter(
+            session__user=request.user,
+            is_correct=False
+        ).values_list("question_id", flat=True).distinct()
+
+        # Filter out questions that have since been answered correctly
+        correct_q_ids = ExamAnswer.objects.filter(
+            session__user=request.user,
+            is_correct=True
+        ).values_list("question_id", flat=True).distinct()
+
+        active_wrong_ids = set(wrong_q_ids) - set(correct_q_ids)
+        qs = Question.objects.filter(id__in=active_wrong_ids).select_related("certification", "topic")
+        if cert_code:
+            qs = qs.filter(certification__code__iexact=cert_code)
+
+        return Response(QuestionSerializer(qs, many=True).data)
+
 
 class ExamSessionViewSet(viewsets.ModelViewSet):
     serializer_class = ExamSessionSerializer
@@ -197,6 +239,267 @@ class ExamSessionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=["post"])
+    def start(self, request):
+        """Initializes a new exam session (practice, timed_mock, retry_wrong, or weak_drill)."""
+        import random
+        cert_code = request.data.get("certification_code", "CCNA-200-301")
+        cert = get_object_or_404(StudyCertification, code__iexact=cert_code)
+        mode = request.data.get("mode", "practice")
+        topic_id = request.data.get("topic_id")
+        requested_count = int(request.data.get("question_count", 0))
+
+        topic = None
+        if topic_id:
+            topic = get_object_or_404(Topic, id=topic_id, certification=cert)
+
+        question_pool = []
+        duration = 120 if "CCNA" in cert.code else 130
+
+        if mode == "practice":
+            if not topic:
+                topic = cert.topics.first()
+            qs = Question.objects.filter(topic=topic)
+            if qs.count() < (requested_count or 10):
+                need = max(5, (requested_count or 10) - qs.count())
+                generate_questions_with_claude(topic, count=need)
+                qs = Question.objects.filter(topic=topic)
+            target_count = requested_count or 10
+            question_pool = list(qs.order_by("?")[:target_count])
+            duration = target_count * 2
+
+        elif mode == "timed_mock":
+            target_count = requested_count or (100 if "CCNA" in cert.code else 65)
+            all_topics = list(cert.topics.all())
+            collected = []
+            for t in all_topics:
+                t_qs = list(Question.objects.filter(topic=t))
+                if not t_qs:
+                    new_qs, _ = generate_questions_with_claude(t, count=3)
+                    collected.extend(new_qs)
+                else:
+                    collected.extend(t_qs[:4])
+
+            random.shuffle(collected)
+            question_pool = collected[:target_count]
+            if len(question_pool) < target_count and all_topics:
+                more_needed = target_count - len(question_pool)
+                for t in all_topics[:more_needed]:
+                    new_qs, _ = generate_questions_with_claude(t, count=2)
+                    question_pool.extend(new_qs)
+                    if len(question_pool) >= target_count:
+                        break
+            question_pool = question_pool[:target_count]
+
+        elif mode == "retry_wrong":
+            wrong_q_ids = ExamAnswer.objects.filter(
+                session__user=request.user,
+                session__certification=cert,
+                is_correct=False
+            ).values_list("question_id", flat=True).distinct()
+            correct_q_ids = ExamAnswer.objects.filter(
+                session__user=request.user,
+                session__certification=cert,
+                is_correct=True
+            ).values_list("question_id", flat=True).distinct()
+            active_wrong = set(wrong_q_ids) - set(correct_q_ids)
+            qs = Question.objects.filter(id__in=active_wrong)
+            if not qs.exists():
+                qs = Question.objects.filter(certification=cert)
+            question_pool = list(qs.order_by("?")[:(requested_count or 15)])
+            duration = max(10, len(question_pool) * 2)
+
+        elif mode == "weak_drill":
+            topic_stats = Topic.objects.filter(certification=cert).annotate(
+                total_answered=Count("questions__exam_answers", filter=Q(questions__exam_answers__session__user=request.user)),
+                correct_count=Count("questions__exam_answers", filter=Q(questions__exam_answers__session__user=request.user, questions__exam_answers__is_correct=True))
+            )
+            weak_topics = sorted(topic_stats, key=lambda t: (t.correct_count / t.total_answered if t.total_answered > 0 else 0))
+            drill_topics = weak_topics[:3] if weak_topics else list(cert.topics.all()[:3])
+            collected = []
+            for t in drill_topics:
+                t_qs = list(Question.objects.filter(topic=t))
+                if len(t_qs) < 5:
+                    new_qs, _ = generate_questions_with_claude(t, count=5)
+                    collected.extend(new_qs)
+                else:
+                    collected.extend(t_qs[:5])
+            random.shuffle(collected)
+            question_pool = collected[:(requested_count or 15)]
+            duration = max(10, len(question_pool) * 2)
+
+        session = ExamSession.objects.create(
+            user=request.user,
+            certification=cert,
+            mode=mode,
+            topic=topic,
+            total_questions=len(question_pool),
+            duration_minutes=duration,
+        )
+
+        return Response({
+            "session_id": session.id,
+            "certification_code": cert.code,
+            "certification_name": cert.name,
+            "mode": mode,
+            "topic_name": topic.name if topic else None,
+            "total_questions": session.total_questions,
+            "duration_minutes": session.duration_minutes,
+            "questions": QuestionSerializer(question_pool, many=True).data,
+            "started_at": session.started_at.isoformat(),
+        })
+
+    @action(detail=True, methods=["post"])
+    def submit_answer(self, request, pk=None):
+        """Submits an answer for a question in this session and returns instant evaluation."""
+        session = self.get_object()
+        question_id = request.data.get("question_id")
+        user_answers = request.data.get("user_answers", [])
+        time_spent = int(request.data.get("time_spent_seconds", 0))
+        flagged = bool(request.data.get("flagged_for_review", False))
+
+        question = get_object_or_404(Question, id=question_id)
+
+        # Check correctness
+        normalized_user = set(str(a).strip().upper() for a in user_answers)
+        normalized_correct = set(str(a).strip().upper() for a in question.correct_answers)
+        is_correct = (normalized_user == normalized_correct) and len(normalized_correct) > 0
+
+        answer, _ = ExamAnswer.objects.update_or_create(
+            session=session,
+            question=question,
+            defaults={
+                "user_answers": user_answers,
+                "is_correct": is_correct,
+                "time_spent_seconds": time_spent,
+                "flagged_for_review": flagged,
+            }
+        )
+
+        # If wrong, automatically ensure an SM-2 spaced repetition card exists
+        if not is_correct:
+            Flashcard.objects.get_or_create(
+                user=request.user,
+                topic=question.topic,
+                question=question,
+                defaults={
+                    "front": f"[{question.topic.name}] {question.text[:300]}",
+                    "back": f"Correct Answer: {', '.join(question.correct_answers)}\n\n{question.explanation}\n\nKey Concept: {question.trigger_words}",
+                    "due_date": timezone.now().date(),
+                }
+            )
+
+        return Response({
+            "answer_id": answer.id,
+            "question_id": question.id,
+            "is_correct": is_correct,
+            "user_answers": user_answers,
+            "correct_answers": question.correct_answers,
+            "explanation": question.explanation,
+            "distractor_notes": question.distractor_notes,
+            "trigger_words": question.trigger_words,
+            "step_by_step_solution": question.step_by_step_solution,
+            "reference_doc_url": question.reference_doc_url,
+        })
+
+    @action(detail=True, methods=["post"])
+    def finish(self, request, pk=None):
+        """Finalizes the exam session, calculates scores and domain breakdowns, and logs study activity."""
+        session = self.get_object()
+        answers = session.answers.select_related("question", "question__topic")
+        total_answers = answers.count()
+        correct_count = answers.filter(is_correct=True).count()
+
+        total_q = session.total_questions or total_answers or 1
+        score_pct = round((correct_count / total_q) * 100, 1)
+
+        pass_threshold = session.certification.passing_score_pct or 80
+        passed = score_pct >= pass_threshold
+
+        domain_breakdown = {}
+        for ans in answers:
+            d_name = ans.question.topic.domain_name or f"Domain {ans.question.topic.domain_number}"
+            if d_name not in domain_breakdown:
+                domain_breakdown[d_name] = {"total": 0, "correct": 0, "pct": 0}
+            domain_breakdown[d_name]["total"] += 1
+            if ans.is_correct:
+                domain_breakdown[d_name]["correct"] += 1
+
+        for d_name, stat in domain_breakdown.items():
+            stat["pct"] = round((stat["correct"] / stat["total"] * 100), 1) if stat["total"] > 0 else 0
+
+        total_time = sum(answers.values_list("time_spent_seconds", flat=True)) or session.time_spent_seconds
+
+        session.score_pct = score_pct
+        session.passed = passed
+        session.time_spent_seconds = total_time
+        session.domain_breakdown = domain_breakdown
+        session.is_completed = True
+        session.completed_at = timezone.now()
+        session.save()
+
+        minutes_spent = max(5, round(total_time / 60))
+        StudyLog.objects.create(
+            user=request.user,
+            certification=session.certification,
+            topic=session.topic,
+            session_type="exam" if session.mode == "timed_mock" else "quiz",
+            duration_minutes=minutes_spent,
+            date=timezone.now().date(),
+            notes=f"{session.mode.title()} session for {session.certification.code}. Score: {score_pct}%. ({correct_count}/{total_q} correct)"
+        )
+
+        return Response(ExamSessionSerializer(session).data)
+
+    @action(detail=True, methods=["get"])
+    def review(self, request, pk=None):
+        """Returns complete end-of-test review details: answers vs correct, explanations, trigger words, and doc links."""
+        session = self.get_object()
+        answers = session.answers.select_related("question", "question__topic").all()
+
+        wrong_answers = []
+        all_answers = []
+
+        for ans in answers:
+            q = ans.question
+            item = {
+                "question_id": q.id,
+                "question_text": q.text,
+                "scenario_context": q.scenario_context,
+                "code_output": q.code_output,
+                "question_type": q.question_type,
+                "options": q.options,
+                "user_answers": ans.user_answers,
+                "correct_answers": q.correct_answers,
+                "is_correct": ans.is_correct,
+                "flagged_for_review": ans.flagged_for_review,
+                "time_spent_seconds": ans.time_spent_seconds,
+                "explanation": q.explanation,
+                "distractor_notes": q.distractor_notes,
+                "trigger_words": q.trigger_words,
+                "step_by_step_solution": q.step_by_step_solution,
+                "reference_doc_url": q.reference_doc_url,
+                "domain_number": q.topic.domain_number,
+                "domain_name": q.topic.domain_name,
+                "topic_name": q.topic.name,
+                "difficulty": q.difficulty,
+            }
+            all_answers.append(item)
+            if not ans.is_correct:
+                wrong_answers.append(item)
+
+        return Response({
+            "session": ExamSessionSerializer(session).data,
+            "total_questions": session.total_questions,
+            "correct_count": len(all_answers) - len(wrong_answers),
+            "wrong_count": len(wrong_answers),
+            "score_pct": float(session.score_pct),
+            "passed": session.passed,
+            "domain_breakdown": session.domain_breakdown,
+            "wrong_questions": wrong_answers,
+            "all_questions": all_answers,
+        })
 
 
 class ExamAnswerViewSet(viewsets.ModelViewSet):

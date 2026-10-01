@@ -75,3 +75,62 @@ class StudyPlatformTests(TestCase):
 
         response = self.client.get("/api/v1/study/labs/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_question_generation_endpoint(self):
+        """Admin can trigger question generation for a topic."""
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post("/api/v1/study/questions/generate/", {
+            "topic_id": self.topic.id,
+            "count": 3,
+            "difficulty": "medium"
+        })
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertTrue(data["created_count"] >= 1)
+        self.assertEqual(len(data["questions"]), data["created_count"])
+
+    def test_exam_session_flow_and_review(self):
+        """Tests full quiz lifecycle: start session, submit answers, finish, and end-of-test review."""
+        self.client.force_authenticate(user=self.user)
+
+        # 1. Start Practice Session
+        start_res = self.client.post("/api/v1/study/exam-sessions/start/", {
+            "certification_code": "CCNA-200-301",
+            "mode": "practice",
+            "topic_id": self.topic.id,
+            "question_count": 2
+        })
+        self.assertEqual(start_res.status_code, status.HTTP_200_OK)
+        start_data = start_res.json()
+        session_id = start_data["session_id"]
+        questions = start_data["questions"]
+        self.assertTrue(len(questions) >= 1)
+
+        # 2. Submit Answer
+        first_q = questions[0]
+        correct_ans = first_q["correct_answers"]
+        ans_res = self.client.post(f"/api/v1/study/exam-sessions/{session_id}/submit_answer/", {
+            "question_id": first_q["id"],
+            "user_answers": correct_ans,
+            "time_spent_seconds": 25
+        })
+        self.assertEqual(ans_res.status_code, status.HTTP_200_OK)
+        ans_data = ans_res.json()
+        self.assertTrue(ans_data["is_correct"])
+        self.assertEqual(ans_data["explanation"], first_q["explanation"])
+
+        # 3. Finish Session
+        finish_res = self.client.post(f"/api/v1/study/exam-sessions/{session_id}/finish/")
+        self.assertEqual(finish_res.status_code, status.HTTP_200_OK)
+        finish_data = finish_res.json()
+        self.assertTrue(finish_data["is_completed"])
+        self.assertIn("domain_breakdown", finish_data)
+
+        # 4. Review Session
+        review_res = self.client.get(f"/api/v1/study/exam-sessions/{session_id}/review/")
+        self.assertEqual(review_res.status_code, status.HTTP_200_OK)
+        review_data = review_res.json()
+        self.assertEqual(review_data["total_questions"], finish_data["total_questions"])
+        self.assertIn("all_questions", review_data)
+        self.assertIn("domain_breakdown", review_data)
+
