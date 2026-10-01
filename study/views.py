@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.db.models import Count, Q, Avg
+from django.db.models import Count, Q, Avg, Sum
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -54,11 +54,12 @@ class StudyCertificationViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"])
     def progress(self, request, pk=None):
-        """Returns consolidated learning progress, accuracy, labs, and readiness score for this certification."""
+        """Returns consolidated learning progress, accuracy, labs, domain breakdown, 90-day heatmap, and readiness score."""
         cert = self.get_object()
         user = request.user
 
-        total_topics = cert.topics.count()
+        topics = cert.topics.all()
+        total_topics = topics.count()
         total_labs = Lab.objects.filter(topic__certification=cert).count()
         completed_labs = LabAttempt.objects.filter(
             user=user,
@@ -75,7 +76,12 @@ class StudyCertificationViewSet(viewsets.ModelViewSet):
         correct_answers = answers.filter(is_correct=True).count()
         accuracy_pct = round((correct_answers / total_answered * 100), 1) if total_answered > 0 else 0
 
-        # Exam readiness formula based on lab completion, question bank volume, and mock exam average
+        # Topic coverage (% of topics with >= 5 questions answered)
+        topic_answer_counts = answers.values("question__topic").annotate(cnt=Count("id"))
+        covered_topics_count = sum(1 for t in topic_answer_counts if t["cnt"] >= 5)
+        topic_coverage_pct = round((covered_topics_count / total_topics * 100), 1) if total_topics > 0 else 0
+
+        # Mock exams average
         mock_sessions = ExamSession.objects.filter(
             user=user,
             certification=cert,
@@ -83,12 +89,112 @@ class StudyCertificationViewSet(viewsets.ModelViewSet):
             is_completed=True
         )
         mock_avg = mock_sessions.aggregate(avg=Avg("score_pct"))["avg"] or 0
+
+        # Weighted Readiness Score: 30% labs + 30% accuracy + 20% topic coverage + 20% mock exams
+        lab_pct = (completed_labs / total_labs * 100) if total_labs > 0 else 0
         readiness_score = round(
-            (0.35 * (completed_labs / total_labs * 100 if total_labs > 0 else 0)) +
-            (0.35 * accuracy_pct) +
-            (0.30 * float(mock_avg)),
+            (0.30 * lab_pct) +
+            (0.30 * accuracy_pct) +
+            (0.20 * topic_coverage_pct) +
+            (0.20 * float(mock_avg)),
             1
         )
+
+        # Domain breakdown
+        domain_dict = {}
+        for t in topics:
+            d_num = t.domain_number
+            if d_num not in domain_dict:
+                domain_dict[d_num] = {
+                    "domain_number": d_num,
+                    "domain_name": t.domain_name,
+                    "weight_pct": t.domain_weight_pct,
+                    "topic_ids": [],
+                    "total_topics": 0,
+                }
+            domain_dict[d_num]["topic_ids"].append(t.id)
+            domain_dict[d_num]["total_topics"] += 1
+
+        domain_breakdown = []
+        for d_num in sorted(domain_dict.keys()):
+            info = domain_dict[d_num]
+            d_topic_ids = info["topic_ids"]
+            d_total_labs = Lab.objects.filter(topic_id__in=d_topic_ids).count()
+            d_completed_labs = LabAttempt.objects.filter(
+                user=user,
+                lab__topic_id__in=d_topic_ids,
+                status="completed"
+            ).count()
+
+            d_answers = answers.filter(question__topic_id__in=d_topic_ids)
+            d_ans_count = d_answers.count()
+            d_correct = d_answers.filter(is_correct=True).count()
+            d_acc = round((d_correct / d_ans_count * 100), 1) if d_ans_count > 0 else 0
+            d_lab_pct = (d_completed_labs / d_total_labs * 100) if d_total_labs > 0 else 0
+
+            d_readiness = round((0.5 * d_lab_pct) + (0.5 * d_acc), 1) if (d_total_labs > 0 or d_ans_count > 0) else 0
+
+            domain_breakdown.append({
+                "domain_number": d_num,
+                "domain_name": info["domain_name"],
+                "weight_pct": info["weight_pct"],
+                "total_topics": info["total_topics"],
+                "total_labs": d_total_labs,
+                "completed_labs": d_completed_labs,
+                "lab_completion_pct": round(d_lab_pct, 1),
+                "questions_answered": d_ans_count,
+                "accuracy_pct": d_acc,
+                "readiness_score": min(100.0, d_readiness),
+            })
+
+        # 90-Day Study Activity Heatmap from StudyLog
+        ninety_days_ago = timezone.now().date() - timezone.timedelta(days=90)
+        logs_90d = StudyLog.objects.filter(
+            user=user,
+            date__gte=ninety_days_ago
+        ).values("date").annotate(
+            count=Count("id"),
+            minutes=Sum("duration_minutes")
+        ).order_by("date")
+
+        heatmap = [
+            {
+                "date": entry["date"].isoformat(),
+                "count": entry["count"],
+                "minutes": entry["minutes"] or 0
+            }
+            for entry in logs_90d
+        ]
+
+        # Consecutive day streak calculation
+        recent_log_dates = set(
+            StudyLog.objects.filter(user=user).values_list("date", flat=True).distinct().order_by("-date")[:60]
+        )
+        today = timezone.now().date()
+        streak = 0
+        cur_date = today
+        while cur_date in recent_log_dates or (streak == 0 and (cur_date - timezone.timedelta(days=1)) in recent_log_dates):
+            if cur_date in recent_log_dates:
+                streak += 1
+            cur_date -= timezone.timedelta(days=1)
+
+        # Active Goal & Daily Target Calculations
+        goal = StudyGoal.objects.filter(user=user, certification=cert, is_active=True).first()
+        goal_data = None
+        if goal:
+            days_left = max(1, (goal.target_exam_date - today).days)
+            remaining_labs = max(0, total_labs - completed_labs)
+            remaining_questions = max(0, (cert.total_exam_questions * 2) - total_answered)
+
+            goal_data = {
+                "id": goal.id,
+                "target_exam_date": goal.target_exam_date.isoformat(),
+                "days_remaining": days_left,
+                "daily_goal_minutes": goal.daily_goal_minutes,
+                "weekly_goal_days": goal.weekly_goal_days,
+                "recommended_daily_questions": max(5, round(remaining_questions / days_left)),
+                "recommended_weekly_labs": max(1, round((remaining_labs / max(1, days_left / 7)))),
+            }
 
         return Response({
             "certification": cert.code,
@@ -96,12 +202,17 @@ class StudyCertificationViewSet(viewsets.ModelViewSet):
             "total_topics": total_topics,
             "total_labs": total_labs,
             "completed_labs": completed_labs,
-            "lab_completion_pct": round((completed_labs / total_labs * 100), 1) if total_labs > 0 else 0,
+            "lab_completion_pct": round(lab_pct, 1),
             "total_questions_attempted": total_answered,
             "accuracy_pct": accuracy_pct,
+            "topic_coverage_pct": topic_coverage_pct,
             "mock_exams_taken": mock_sessions.count(),
             "mock_exam_average": round(float(mock_avg), 1),
             "readiness_score": min(100.0, readiness_score),
+            "streak_days": streak,
+            "domain_breakdown": domain_breakdown,
+            "heatmap": heatmap,
+            "goal": goal_data,
         })
 
 
