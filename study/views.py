@@ -38,7 +38,12 @@ from .serializers import (
     StudyLogSerializer,
     StudyGoalSerializer,
 )
-from .ai_service import generate_questions_with_claude
+from .ai_service import (
+    generate_questions_with_claude,
+    generate_interview_brief_with_claude,
+    mock_interview_turn_with_claude,
+    mock_interview_evaluate_with_claude,
+)
 
 
 class StudyCertificationViewSet(viewsets.ModelViewSet):
@@ -355,22 +360,32 @@ class ExamSessionViewSet(viewsets.ModelViewSet):
         """Submits an answer for a question in this session and returns instant evaluation."""
         session = self.get_object()
         question_id = request.data.get("question_id")
-        user_answers = request.data.get("user_answers", [])
+        raw_user_answers = request.data.get("user_answers", [])
+        if hasattr(request.data, "getlist"):
+            # If submitted as form-encoded with multiple values
+            user_answers_list = request.data.getlist("user_answers")
+            if user_answers_list:
+                raw_user_answers = user_answers_list
+        if isinstance(raw_user_answers, str):
+            raw_user_answers = [raw_user_answers]
+        elif not isinstance(raw_user_answers, (list, tuple, set)):
+            raw_user_answers = [raw_user_answers]
+
         time_spent = int(request.data.get("time_spent_seconds", 0))
         flagged = bool(request.data.get("flagged_for_review", False))
 
         question = get_object_or_404(Question, id=question_id)
 
         # Check correctness
-        normalized_user = set(str(a).strip().upper() for a in user_answers)
-        normalized_correct = set(str(a).strip().upper() for a in question.correct_answers)
+        normalized_user = set(str(a).strip().upper() for a in raw_user_answers if str(a).strip())
+        normalized_correct = set(str(a).strip().upper() for a in question.correct_answers if str(a).strip())
         is_correct = (normalized_user == normalized_correct) and len(normalized_correct) > 0
 
         answer, _ = ExamAnswer.objects.update_or_create(
             session=session,
             question=question,
             defaults={
-                "user_answers": user_answers,
+                "user_answers": list(raw_user_answers),
                 "is_correct": is_correct,
                 "time_spent_seconds": time_spent,
                 "flagged_for_review": flagged,
@@ -394,7 +409,7 @@ class ExamSessionViewSet(viewsets.ModelViewSet):
             "answer_id": answer.id,
             "question_id": question.id,
             "is_correct": is_correct,
-            "user_answers": user_answers,
+            "user_answers": list(raw_user_answers),
             "correct_answers": question.correct_answers,
             "explanation": question.explanation,
             "distractor_notes": question.distractor_notes,
@@ -587,10 +602,106 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Organization.objects.filter(user=self.request.user).prefetch_related("linked_topics")
+        return Organization.objects.filter(user=self.request.user).prefetch_related("linked_topics").select_related("brief")
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        org = serializer.save(user=self.request.user)
+        # Automatically generate brief on creation if raw text or URLs are present
+        raw_text = self.request.data.get("raw_text", "")
+        generate_interview_brief_with_claude(org, raw_text=raw_text, user=self.request.user)
+
+    @action(detail=True, methods=["post"])
+    def generate_brief(self, request, pk=None):
+        """Generates or regenerates an AI interview preparation brief for this organization."""
+        org = self.get_object()
+        raw_text = request.data.get("raw_text", "")
+        brief = generate_interview_brief_with_claude(org, raw_text=raw_text, user=request.user)
+        return Response(InterviewBriefSerializer(brief).data)
+
+    @action(detail=False, methods=["get"])
+    def available_applications(self, request):
+        """Returns existing JobApplication items from the user's application tracker for quick import."""
+        try:
+            from applications.models import JobApplication
+            apps = JobApplication.objects.all().order_by("-date_applied", "-created_at")[:50]
+            existing_companies = set(
+                Organization.objects.filter(user=request.user).values_list("company_name", flat=True)
+            )
+            items = []
+            for a in apps:
+                items.append({
+                    "id": a.id,
+                    "company": a.company,
+                    "role": a.role,
+                    "status": a.status,
+                    "link": a.link,
+                    "date_applied": a.date_applied.isoformat() if a.date_applied else None,
+                    "job_requirements": a.job_requirements or a.key_responsibilities or "",
+                    "already_imported": a.company in existing_companies,
+                })
+            return Response(items)
+        except Exception as e:
+            logger.warning(f"Error fetching job applications: {e}")
+            return Response([])
+
+    @action(detail=False, methods=["post"])
+    def import_application(self, request):
+        """Imports a JobApplication into Organization and generates its interview brief."""
+        app_id = request.data.get("application_id")
+        try:
+            from applications.models import JobApplication
+            app_obj = get_object_or_404(JobApplication, id=app_id)
+
+            status_map = {
+                "Applied": "Applied",
+                "Not yet Applied": "Wishlist",
+                "Interviewing": "Interviewing",
+                "Offer": "Offer",
+                "Rejected": "Rejected",
+            }
+            mapped_status = status_map.get(app_obj.status, "Applied")
+
+            org, created = Organization.objects.update_or_create(
+                user=request.user,
+                company_name=app_obj.company,
+                defaults={
+                    "role": app_obj.role,
+                    "status": mapped_status,
+                    "job_posting_url": app_obj.link or "",
+                    "application_date": app_obj.date_applied,
+                    "notes": app_obj.notes or "",
+                }
+            )
+
+            raw_text = app_obj.job_requirements or app_obj.key_responsibilities or app_obj.notes or ""
+            generate_interview_brief_with_claude(org, raw_text=raw_text, user=request.user)
+
+            return Response(OrganizationSerializer(org).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": f"Failed to import application: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"])
+    def start_mock_interview(self, request, pk=None):
+        """Starts a new mock interview session for this organization and produces the opening question."""
+        org = self.get_object()
+        role_title = request.data.get("role_title") or org.role or "Network / Cloud Engineer"
+        mode = request.data.get("mode", "mixed")
+
+        mock = MockInterview.objects.create(
+            user=request.user,
+            organization=org,
+            role_title=role_title,
+            transcript=[],
+            feedback={},
+            overall_score=0,
+            is_completed=False,
+        )
+
+        turn_result = mock_interview_turn_with_claude(mock, candidate_message="", interview_mode=mode)
+        serializer = MockInterviewSerializer(mock)
+        data = serializer.data
+        data["interviewer_response"] = turn_result.get("interviewer_response")
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 class InterviewBriefViewSet(viewsets.ModelViewSet):
@@ -606,10 +717,36 @@ class MockInterviewViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return MockInterview.objects.filter(user=self.request.user).select_related("organization")
+        qs = MockInterview.objects.filter(user=self.request.user).select_related("organization")
+        org_id = self.request.query_params.get("organization")
+        if org_id:
+            qs = qs.filter(organization_id=org_id)
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=["post"])
+    def respond(self, request, pk=None):
+        """Submits candidate's response to the interviewer and gets back critique + next question."""
+        mock = self.get_object()
+        if mock.is_completed:
+            return Response({"error": "This mock interview is already finalized and completed."}, status=status.HTTP_400_BAD_REQUEST)
+
+        candidate_message = request.data.get("candidate_message", "").strip()
+        mode = request.data.get("mode", "mixed")
+        if not candidate_message:
+            return Response({"error": "candidate_message is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        turn_result = mock_interview_turn_with_claude(mock, candidate_message=candidate_message, interview_mode=mode)
+        return Response(turn_result)
+
+    @action(detail=True, methods=["post"])
+    def finish(self, request, pk=None):
+        """Concludes the mock interview, calculates scorecard, and provides comprehensive feedback."""
+        mock = self.get_object()
+        feedback = mock_interview_evaluate_with_claude(mock)
+        return Response(MockInterviewSerializer(mock).data)
 
 
 class StudyLogViewSet(viewsets.ModelViewSet):

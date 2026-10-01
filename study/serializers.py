@@ -311,6 +311,12 @@ class InterviewBriefSerializer(serializers.ModelSerializer):
 class OrganizationSerializer(serializers.ModelSerializer):
     brief = InterviewBriefSerializer(read_only=True)
     linked_topic_details = TopicSerializer(source="linked_topics", many=True, read_only=True)
+    mock_interviews_count = serializers.IntegerField(source="mock_interviews.count", read_only=True)
+    latest_mock_score = serializers.SerializerMethodField()
+
+    def get_latest_mock_score(self, obj):
+        latest = obj.mock_interviews.filter(is_completed=True).order_by("-updated_at").first()
+        return latest.overall_score if latest else None
 
     class Meta:
         model = Organization
@@ -329,6 +335,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "linked_topics",
             "linked_topic_details",
             "brief",
+            "mock_interviews_count",
+            "latest_mock_score",
             "created_at",
             "updated_at",
         ]
